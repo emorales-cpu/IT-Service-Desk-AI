@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import Papa from 'papaparse';
 import {
   BarChart,
@@ -12,8 +12,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  LineChart,
-  Line,
 } from 'recharts';
 import {
   Upload,
@@ -30,7 +28,12 @@ import {
   List,
   Award,
   X,
+  Download,
+  Maximize2,
+  Smile,
 } from 'lucide-react';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 const COLORS = [
   '#3b82f6',
@@ -41,6 +44,28 @@ const COLORS = [
   '#06b6d4',
   '#ec4899',
   '#6366f1',
+];
+
+// 🚀 ORGANIGRAMA OFICIAL
+const EQUIPO_IT: Record<string, { dept: string; role: string }> = {
+  'Joan Perez': { dept: 'Soporte Técnico', role: 'Service Desk N2' },
+  'Jean Nunez': { dept: 'Soporte Técnico', role: 'Service Desk N2' },
+  'Eriksson Morales': { dept: 'Soporte Técnico', role: 'Service Desk N2' },
+  'Henry Garcia': { dept: 'Soporte Técnico', role: 'Service Desk N2' },
+  'Enmanuel Jerez': { dept: 'Sistemas & Aplicaciones', role: 'ITR Hub & CRM' },
+  'Jose Martinez': { dept: 'Sistemas & Aplicaciones', role: 'Soporte de Software' },
+  'Saul Vanderhorst': { dept: 'Infraestructura & Redes', role: 'Comunicaciones & Telefonía' },
+  'Firian Martinez': { dept: 'Infraestructura & Redes', role: 'Service Desk N1' },
+  'Marianny Torres': { dept: 'Sin Asignar', role: 'Leads' },
+  'Unassigned': { dept: 'Sin Asignar', role: 'Cola General' },
+  '-': { dept: 'Sin Asignar', role: 'Cola General' }
+};
+
+const OFFICIAL_DEPTS = [
+  'Soporte Técnico',
+  'Sistemas & Aplicaciones',
+  'Infraestructura & Redes',
+  'Sin Asignar'
 ];
 
 interface TicketData {
@@ -55,33 +80,44 @@ interface UserStat {
   closed: number;
   backlog: number;
   violations: number;
+  csatScore: number | null;
   resolutionRate: string;
   slaCompliance: string;
   numericResolutionRate: number;
   numericSlaCompliance: number;
+  finalComplianceWithBonus: number;
   incentiveStatus: string;
 }
 
-interface Insight {
+interface InsightModal {
   id: string;
-  type: 'success' | 'warning' | 'danger' | 'info';
-  text: string;
-  data: any[]; // Datos para el gráfico modal
+  type: 'success' | 'warning' | 'danger' | 'info' | 'chart';
   title: string;
+  text?: string;
+  chartType: 'pie' | 'bar';
+  data: any[];
 }
 
 export default function App() {
   const [allTickets, setAllTickets] = useState<TicketData[]>([]);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'team' | 'raw'>(
-    'dashboard'
-  );
+  const [isExporting, setIsExporting] = useState(false);
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'team' | 'raw'>('dashboard');
 
   const [selectedUser, setSelectedUser] = useState<string>('Todos');
   const [selectedDept, setSelectedDept] = useState<string>('Todos');
 
-  // Estado para el Modal de Insights
-  const [activeModal, setActiveModal] = useState<Insight | null>(null);
+  const [activeModal, setActiveModal] = useState<InsightModal | null>(null);
+  const pdfRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (selectedDept !== 'Todos' && selectedUser !== 'Todos') {
+      const isUserInDept = EQUIPO_IT[selectedUser]?.dept === selectedDept;
+      if (!isUserInDept) {
+        setSelectedUser('Todos');
+      }
+    }
+  }, [selectedDept, selectedUser]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -98,8 +134,8 @@ export default function App() {
         for (let i = 0; i < rows.length; i++) {
           const rowString = rows[i].join(',').toLowerCase();
           if (
-            rowString.includes('ticket id') ||
-            rowString.includes('ticket_id')
+            (rowString.includes('ticket id') || rowString.includes('ticket_id')) &&
+            (rowString.includes('owner') || rowString.includes('técnico responsable') || rowString.includes('sub-departamento'))
           ) {
             headerIndex = i;
             break;
@@ -107,25 +143,23 @@ export default function App() {
         }
 
         if (headerIndex === -1) {
-          alert(
-            'Error: No se encontró la cabecera de datos. Asegúrate de subir el reporte correcto.'
-          );
+          alert('Error: No se encontró la cabecera de datos maestros. Asegúrate de subir el reporte completo.');
           setLoading(false);
           return;
         }
 
-        const headers = rows[headerIndex].map((h) => h.trim());
+        const headers = rows[headerIndex].map((h) => h.replace(/["\r\n]/g, '').trim());
         const rawData = rows.slice(headerIndex + 1);
 
         const tickets: TicketData[] = rawData
           .map((row) => {
             const obj: TicketData = {};
             headers.forEach((header, idx) => {
-              obj[header] = row[idx] ? row[idx].trim() : '';
+              obj[header] = row[idx] ? row[idx].toString().replace(/["\r\n]/g, '').trim() : '';
             });
             return obj;
           })
-          .filter((t) => t['Ticket Id'] || t['Ticket ID']);
+          .filter((t) => t['Ticket Id'] || t['Ticket ID'] || t['Ticket Id '] || t['Ticket ID ']);
 
         setAllTickets(tickets);
         setLoading(false);
@@ -133,302 +167,243 @@ export default function App() {
     });
   };
 
-  const getVal = (
-    ticket: TicketData,
-    possibleKeys: string[],
-    defaultValue: string
-  ) => {
-    for (const key of possibleKeys) {
-      if (ticket[key] && ticket[key] !== '-' && ticket[key].trim() !== '') {
-        return ticket[key];
+  const exportPDF = async () => {
+    const element = pdfRef.current;
+    if (!element) return;
+    setIsExporting(true);
+    try {
+      const canvas = await html2canvas(element, { scale: 2, backgroundColor: '#090e17', logging: false, useCORS: true });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('l', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgProps = pdf.getImageProperties(imgData);
+      const renderHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+      if (renderHeight <= pdfHeight) {
+        pdf.addImage(imgData, 'PNG', 0, (pdfHeight - renderHeight) / 2, pdfWidth, renderHeight);
+      } else {
+        const renderWidth = (imgProps.width * pdfHeight) / imgProps.height;
+        pdf.addImage(imgData, 'PNG', (pdfWidth - renderWidth) / 2, 0, renderWidth, pdfHeight);
+      }
+      pdf.save(`Reporte_SLA_${selectedUser !== 'Todos' ? selectedUser : 'Global'}.pdf`);
+    } catch (error) {
+      console.error('Error al exportar PDF:', error);
+      alert('Hubo un error al generar el PDF.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const getVal = (ticket: TicketData, possibleKeys: string[], defaultValue: string) => {
+    const ticketKeys = Object.keys(ticket);
+    for (const pKey of possibleKeys) {
+      const foundKey = ticketKeys.find((k) => k.toLowerCase().replace(/[^a-z0-9]/g, '') === pKey.toLowerCase().replace(/[^a-z0-9]/g, ''));
+      if (foundKey && ticket[foundKey] && ticket[foundKey] !== '-' && ticket[foundKey].trim() !== '') {
+        return ticket[foundKey];
       }
     }
     return defaultValue;
   };
 
-  const { stats, uniqueUsers, uniqueDepts, filteredTickets, insights } =
+  const getOfficialDept = (rawDeptString: string) => {
+    const str = rawDeptString.toLowerCase();
+    if (str.includes('soporte')) return 'Soporte Técnico';
+    if (str.includes('sistemas') || str.includes('aplicaciones')) return 'Sistemas & Aplicaciones';
+    if (str.includes('infraestructura') || str.includes('redes')) return 'Infraestructura & Redes';
+    return 'Sin Asignar';
+  };
+
+  const { stats, uniqueUsers, filteredTickets, insights, hasCsatData } =
     useMemo(() => {
       if (allTickets.length === 0)
-        return {
-          stats: null,
-          uniqueUsers: [],
-          uniqueDepts: [],
-          filteredTickets: [],
-          insights: [],
-        };
+        return { stats: null, uniqueUsers: [], filteredTickets: [], insights: [], hasCsatData: false };
 
       const usersSet = new Set<string>();
-      const deptsSet = new Set<string>();
 
       allTickets.forEach((t) => {
-        usersSet.add(
-          getVal(
-            t,
-            ['Ticket Owner', 'Técnico Responsable', 'Técnico'],
-            'Sin Asignar'
-          )
-        );
-        deptsSet.add(
-          getVal(
-            t,
-            [
-              'Sub-departamento',
-              'Sub-departament',
-              'Sub-department',
-              'Departamento',
-              'Department Name',
-            ],
-            'Sin Depto'
-          )
-        );
+        const rawOwner = getVal(t, ['Ticket Owner', 'Técnico', 'Agent'], 'Sin Asignar');
+        usersSet.add(rawOwner.trim() === '' ? 'Sin Asignar' : rawOwner);
       });
 
       const uniqueUsersList = Array.from(usersSet).sort();
-      const uniqueDeptsList = Array.from(deptsSet).sort();
 
       const currentTickets = allTickets.filter((t) => {
-        const owner = getVal(
-          t,
-          ['Ticket Owner', 'Técnico Responsable', 'Técnico'],
-          'Sin Asignar'
-        );
-        const dept = getVal(
-          t,
-          [
-            'Sub-departamento',
-            'Sub-departament',
-            'Sub-department',
-            'Departamento',
-            'Department Name',
-          ],
-          'Sin Depto'
-        );
-        return (
-          (selectedUser === 'Todos' || owner === selectedUser) &&
-          (selectedDept === 'Todos' || dept === selectedDept)
-        );
+        const rawOwner = getVal(t, ['Ticket Owner', 'Técnico', 'Agent'], 'Sin Asignar');
+        const owner = rawOwner.trim() === '' ? 'Sin Asignar' : rawOwner;
+        const officialMatch = EQUIPO_IT[owner];
+        let dept = 'Sin Asignar';
+        if (officialMatch) {
+          dept = officialMatch.dept;
+        } else {
+          const rawDept = getVal(t, ['Sub-departamento', 'departamento', 'department'], 'Sin Depto');
+          dept = getOfficialDept(rawDept);
+        }
+
+        const matchUser = selectedUser === 'Todos' || owner === selectedUser;
+        const matchDept = selectedDept === 'Todos' || dept === selectedDept;
+        
+        return matchUser && matchDept;
       });
 
       let total = currentTickets.length;
       let closed = 0;
       let backlog = 0;
       let slaViolations = 0;
+      
+      let globalCsatSum = 0;
+      let globalCsatCount = 0;
 
-      const userStats: Record<string, UserStat> = {};
+      const userStats: Record<string, UserStat & { _csatSum: number; _csatCount: number }> = {};
       const categoryStats: Record<string, { name: string; value: number }> = {};
       const statusStats: Record<string, { name: string; value: number }> = {};
-      const priorityStats: Record<string, { name: string; value: number }> = {};
 
       currentTickets.forEach((t) => {
-        const owner = getVal(
-          t,
-          ['Ticket Owner', 'Técnico Responsable', 'Técnico'],
-          'Sin Asignar'
-        );
-        const dept = getVal(
-          t,
-          [
-            'Sub-departamento',
-            'Sub-departament',
-            'Sub-department',
-            'Departamento',
-            'Department Name',
-          ],
-          'Sin Depto'
-        );
-        const status = getVal(
-          t,
-          ['Status (Ticket)', 'Estado', 'Status'],
-          'Open'
-        );
-        const sla = getVal(
-          t,
-          ['SLA Violation Type', 'Tipo Violación SLA', 'Violación SLA'],
-          'Not Violated'
-        );
-        const product = getVal(
-          t,
-          ['Product Name (Ticket)', 'Categoría / Producto', 'Product Name'],
-          'Sin Categoría'
-        );
-        const role = getVal(t, ['Request Level', 'Rol', 'Nivel'], 'N/A');
-        const priority = getVal(
-          t,
-          ['Priority (Ticket)', 'Prioridad'],
-          'Normal'
-        );
+        const rawOwner = getVal(t, ['Ticket Owner', 'Técnico', 'Agent'], 'Sin Asignar');
+        const owner = rawOwner.trim() === '' ? 'Sin Asignar' : rawOwner;
+        
+        const officialMatch = EQUIPO_IT[owner];
+        const dept = officialMatch ? officialMatch.dept : 'Sin Asignar';
+        const role = officialMatch ? officialMatch.role : getVal(t, ['Request Level', 'Rol'], 'N/A');
 
-        const isClosed =
-          status.toLowerCase().includes('closed') ||
-          status.toLowerCase().includes('resolved');
-        const isViolation =
-          sla.toLowerCase().includes('violation') ||
-          sla.toLowerCase().includes('violación');
+        const status = getVal(t, ['Status (Ticket)', 'Estado', 'Status'], 'Open');
+        const sla = getVal(t, ['SLA Violation Type', 'Violación SLA'], 'Not Violated');
+        const product = getVal(t, ['Product Name (Ticket)', 'Categoría', 'Product Name'], 'Sin Categoría');
+        
+        const rawCsat = getVal(t, ['CSAT', 'Happiness Rating', 'Happiness', 'Satisfaction', 'Satisfacción', 'Rating'], 'N/A');
+        let ticketCsat = null;
+        if (rawCsat !== 'N/A') {
+          const parsed = parseFloat(rawCsat.replace(/[^0-9.]/g, ''));
+          if (!isNaN(parsed)) {
+            ticketCsat = parsed <= 5 && rawCsat.includes('5') ? (parsed / 5) * 100 : parsed;
+            globalCsatSum += ticketCsat;
+            globalCsatCount++;
+          }
+        }
 
-        if (isClosed) closed++;
-        else backlog++;
+        const isClosed = status.toLowerCase().includes('closed') || status.toLowerCase().includes('resolved');
+        const isViolation = sla.toLowerCase().includes('violation') || sla.toLowerCase().includes('violación');
+
+        if (isClosed) closed++; else backlog++;
         if (isViolation) slaViolations++;
 
         if (!userStats[owner]) {
           userStats[owner] = {
-            name: owner,
-            dept,
-            role,
-            total: 0,
-            closed: 0,
-            backlog: 0,
-            violations: 0,
-            resolutionRate: '0',
-            slaCompliance: '0',
-            numericResolutionRate: 0,
-            numericSlaCompliance: 0,
-            incentiveStatus: '',
+            name: owner, dept, role, total: 0, closed: 0, backlog: 0, violations: 0,
+            csatScore: null, _csatSum: 0, _csatCount: 0,
+            resolutionRate: '0', slaCompliance: '0', numericResolutionRate: 0, numericSlaCompliance: 0, 
+            finalComplianceWithBonus: 0, incentiveStatus: '',
           };
         }
         userStats[owner].total++;
-        if (isClosed) userStats[owner].closed++;
-        else userStats[owner].backlog++;
+        if (isClosed) userStats[owner].closed++; else userStats[owner].backlog++;
         if (isViolation) userStats[owner].violations++;
+        
+        if (ticketCsat !== null) {
+          userStats[owner]._csatSum += ticketCsat;
+          userStats[owner]._csatCount++;
+        }
 
-        if (!categoryStats[product])
-          categoryStats[product] = { name: product, value: 0 };
+        if (!categoryStats[product]) categoryStats[product] = { name: product, value: 0 };
         categoryStats[product].value++;
 
-        if (!statusStats[status])
-          statusStats[status] = { name: status, value: 0 };
+        if (!statusStats[status]) statusStats[status] = { name: status, value: 0 };
         statusStats[status].value++;
-
-        if (!priorityStats[priority])
-          priorityStats[priority] = { name: priority, value: 0 };
-        priorityStats[priority].value++;
       });
 
       const processedUsers = Object.values(userStats)
         .map((u) => {
           const numResRate = u.total > 0 ? (u.closed / u.total) * 100 : 0;
-          const numSlaComp =
-            u.total > 0 ? ((u.total - u.violations) / u.total) * 100 : 0;
+          let numSlaComp = u.total > 0 ? ((u.total - u.violations) / u.total) * 100 : 0;
+          
+          const userCsat = u._csatCount > 0 ? (u._csatSum / u._csatCount) : null;
+          
+          let csatBonus = 0;
+          if (userCsat !== null && userCsat >= 90) {
+             csatBonus = 2.5;
+          }
+          
+          const finalCompliance = numSlaComp + csatBonus;
+          const isApproved = finalCompliance >= 85;
+
           return {
             ...u,
+            csatScore: userCsat,
             numericResolutionRate: numResRate,
             numericSlaCompliance: numSlaComp,
+            finalComplianceWithBonus: finalCompliance,
             resolutionRate: numResRate.toFixed(1) + '%',
             slaCompliance: numSlaComp.toFixed(1) + '%',
-            incentiveStatus: numSlaComp >= 85 ? 'Aprobado' : 'En Revisión',
+            incentiveStatus: isApproved ? (csatBonus > 0 && numSlaComp < 85 ? 'Salvado por CSAT' : 'Aprobado') : 'En Revisión',
           };
         })
         .sort((a, b) => b.total - a.total);
 
-      const processedCategories = Object.values(categoryStats)
-        .sort((a, b) => b.value - a.value)
-        .slice(0, 10);
-      const processedStatus = Object.values(statusStats).sort(
-        (a, b) => b.value - a.value
-      );
+      const processedCategories = Object.values(categoryStats).sort((a, b) => b.value - a.value).slice(0, 10);
+      const processedStatus = Object.values(statusStats).sort((a, b) => b.value - a.value);
 
-      const complianceRateGlobalNum =
-        total === 0 ? 0 : ((total - slaViolations) / total) * 100;
-      const complianceRateGlobal = complianceRateGlobalNum.toFixed(1) + '%';
+      const complianceRateGlobalNum = total === 0 ? 0 : ((total - slaViolations) / total) * 100;
+      const globalCsatAverage = globalCsatCount > 0 ? (globalCsatSum / globalCsatCount) : null;
+      
+      let globalBonus = 0;
+      if (globalCsatAverage !== null && globalCsatAverage >= 90) globalBonus = 2.5;
+      const finalGlobalCompliance = complianceRateGlobalNum + globalBonus;
 
-      // ==========================================
-      // GENERADOR DE INSIGHTS INTERACTIVOS (MODALES)
-      // ==========================================
-      let generatedInsights: Insight[] = [];
+      let generatedInsights: InsightModal[] = [];
 
-      // Insight 1: Salud Global
-      if (complianceRateGlobalNum >= 85) {
-        // Preparamos datos para la gráfica de tendencia simulada o comparación
-        const slaData = processedUsers
-          .map((u) => ({
-            name: u.name.split(' ')[0],
-            SLA: u.numericSlaCompliance,
-            Meta: 85,
-          }))
-          .slice(0, 8);
+      if (finalGlobalCompliance >= 85) {
+        const slaData = processedUsers.map((u) => ({ name: u.name.split(' ')[0], SLA: u.finalComplianceWithBonus, Meta: 85 })).slice(0, 8);
         generatedInsights.push({
-          id: 'global-sla',
-          type: 'success',
-          title: 'Cumplimiento SLA por Técnico',
-          text: `Rendimiento Óptimo: El equipo mantiene un SLA global saludable de ${complianceRateGlobal}.`,
-          data: slaData,
+          id: 'global-sla', type: 'success', title: 'Cumplimiento SLA por Técnico',
+          text: `Rendimiento Óptimo: El equipo mantiene un SLA global saludable de ${finalGlobalCompliance.toFixed(1)}%.`,
+          chartType: 'bar', data: slaData,
         });
       } else {
-        const slaData = processedUsers
-          .map((u) => ({
-            name: u.name.split(' ')[0],
-            SLA: u.numericSlaCompliance,
-            Meta: 85,
-          }))
-          .slice(0, 8);
+        const slaData = processedUsers.map((u) => ({ name: u.name.split(' ')[0], SLA: u.finalComplianceWithBonus, Meta: 85 })).slice(0, 8);
         generatedInsights.push({
-          id: 'global-sla-warn',
-          type: 'warning',
-          title: 'Rendimiento Crítico de SLA',
-          text: `Alerta: El SLA global (${complianceRateGlobal}) está por debajo de la meta del 85%.`,
-          data: slaData,
+          id: 'global-sla-warn', type: 'warning', title: 'Rendimiento Crítico de SLA',
+          text: `Alerta: El SLA global (${finalGlobalCompliance.toFixed(1)}%) está por debajo de la meta del 85%.`,
+          chartType: 'bar', data: slaData,
         });
       }
 
-      // Insight 2: Foco Operativo (El que más viola SLAs)
-      const topViolator = processedUsers
-        .slice()
-        .sort((a, b) => b.violations - a.violations)[0];
+      const topViolator = processedUsers.slice().sort((a, b) => b.violations - a.violations)[0];
       if (topViolator && topViolator.violations > 0) {
-        // Datos: Comparación de violaciones del equipo
-        const violatorData = processedUsers
-          .filter((u) => u.violations > 0)
-          .map((u) => ({
-            name: u.name.split(' ')[0],
-            Violaciones: u.violations,
-          }))
-          .sort((a, b) => b.Violaciones - a.Violaciones)
-          .slice(0, 5);
-
+        const violatorData = processedUsers.filter((u) => u.violations > 0)
+          .map((u) => ({ name: u.name.split(' ')[0], Violaciones: u.violations }))
+          .sort((a, b) => b.Violaciones - a.Violaciones).slice(0, 5);
         generatedInsights.push({
-          id: 'foco-operativo',
-          type: 'danger',
-          title: 'Comparativa de Violaciones SLA',
+          id: 'foco-operativo', type: 'danger', title: 'Comparativa de Violaciones SLA',
           text: `Foco Operativo: ${topViolator.name} registra ${topViolator.violations} violaciones de SLA (Requiere revisión).`,
-          data: violatorData,
+          chartType: 'bar', data: violatorData,
         });
       }
 
-      // Insight 3: Categoría Principal
-      if (processedCategories.length > 0) {
-        // Datos: Top 5 categorías
-        const catData = processedCategories.slice(0, 5).map((c) => ({
-          name: c.name.length > 15 ? c.name.substring(0, 15) + '...' : c.name,
-          Volumen: c.value,
-        }));
+      if (globalCsatAverage !== null && globalCsatAverage >= 90) {
         generatedInsights.push({
-          id: 'top-categoria',
-          type: 'info',
-          title: 'Distribución de Volumen por Categoría',
-          text: `Categoría Principal: "${processedCategories[0].name}" representa el mayor volumen de tickets.`,
-          data: catData,
+          id: 'csat-insight', type: 'success', title: 'Índice de Felicidad Sobresaliente',
+          text: `¡Excelente trabajo! La satisfacción del cliente es del ${globalCsatAverage.toFixed(1)}%, otorgando un bono global de protección SLA.`,
+          chartType: 'bar', data: processedUsers.filter(u => u.csatScore !== null).map(u => ({ name: u.name.split(' ')[0], CSAT: u.csatScore })),
         });
       }
 
       return {
         stats: {
-          total,
-          closed,
-          backlog,
-          slaViolations,
-          resolutionRateGlobal:
-            total === 0 ? '0.0%' : ((closed / total) * 100).toFixed(1) + '%',
-          complianceRateGlobal: complianceRateGlobal,
-          isApprovedGlobal: complianceRateGlobalNum >= 85,
-          users: processedUsers,
-          categories: processedCategories,
-          status: processedStatus,
+          total, closed, backlog, slaViolations,
+          resolutionRateGlobal: total === 0 ? '0.0%' : ((closed / total) * 100).toFixed(1) + '%',
+          complianceRateGlobalNum,
+          finalGlobalCompliance,
+          globalCsatAverage,
+          isApprovedGlobal: finalGlobalCompliance >= 85,
+          users: processedUsers, categories: processedCategories, status: processedStatus,
         },
-        uniqueUsers: uniqueUsersList,
-        uniqueDepts: uniqueDeptsList,
-        filteredTickets: currentTickets,
-        insights: generatedInsights,
+        uniqueUsers: uniqueUsersList, filteredTickets: currentTickets, insights: generatedInsights, hasCsatData: globalCsatCount > 0
       };
     }, [allTickets, selectedUser, selectedDept]);
+
+  const displayedUsers = selectedDept === 'Todos' 
+    ? uniqueUsers 
+    : uniqueUsers.filter(user => EQUIPO_IT[user]?.dept === selectedDept || (EQUIPO_IT[user] === undefined && selectedDept === 'Sin Asignar'));
 
   if (allTickets.length === 0) {
     return (
@@ -438,22 +413,13 @@ export default function App() {
           <div className="w-20 h-20 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-6 ring-1 ring-blue-500/20">
             <Upload className="w-8 h-8 text-blue-400" />
           </div>
-          <h1 className="text-3xl font-extrabold text-white mb-2 tracking-tight">
-            IT Service Desk AI
-          </h1>
-          <p className="text-slate-400 mb-8 text-sm leading-relaxed">
-            Plataforma analítica para evaluación operativa y dictamen de
-            incentivos. Sube el ExportReport para comenzar.
+          <h1 className="text-3xl font-extrabold text-white mb-3 tracking-tight">IT Service Desk</h1>
+          <p className="text-slate-100 mb-8 text-base font-semibold leading-relaxed bg-slate-800/60 p-4 rounded-xl border border-slate-700/60 shadow-inner">
+            Plataforma analítica para evaluación operativa y dictamen de incentivos. Sube el ExportReport para comenzar.
           </p>
           <label className="cursor-pointer bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-semibold py-3 px-8 rounded-xl transition-all flex items-center justify-center gap-3 text-sm shadow-lg shadow-blue-900/40 hover:scale-105 active:scale-95">
-            {loading ? 'Procesando Motor de Datos...' : 'Cargar Reporte (CSV)'}
-            <input
-              type="file"
-              accept=".csv"
-              className="hidden"
-              onChange={handleFileUpload}
-              disabled={loading}
-            />
+            {loading ? 'Procesando Motor...' : 'Cargar Reporte (CSV)'}
+            <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload} disabled={loading} />
           </label>
         </div>
       </div>
@@ -462,71 +428,49 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#090e17] text-slate-300 font-sans pb-12 flex flex-col items-center relative">
-      {/* MODAL DE INSIGHTS */}
+      {/* MODAL MÁGICO */}
       {activeModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-200">
           <div className="bg-[#131b2c] w-full max-w-3xl rounded-2xl border border-slate-700 shadow-2xl overflow-hidden flex flex-col">
-            <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/50">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/60">
+              <h2 className="text-base font-bold text-white flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-blue-400" />
                 {activeModal.title}
               </h2>
-              <button
-                onClick={() => setActiveModal(null)}
-                className="p-1 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"
-              >
-                <X className="w-6 h-6" />
+              <button onClick={() => setActiveModal(null)} className="p-1.5 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
               </button>
             </div>
             <div className="p-6">
-              <p className="text-sm text-slate-300 mb-6 bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
-                {activeModal.text}
-              </p>
-              <div className="h-[300px] w-full">
+              {activeModal.text && (
+                <p className="text-xs text-slate-300 mb-6 bg-slate-800/60 p-4 rounded-xl border border-slate-700/50 leading-relaxed">
+                  {activeModal.text}
+                </p>
+              )}
+              <div className="h-[320px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={activeModal.data}
-                    margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
-                  >
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      vertical={false}
-                      stroke="#1e293b"
-                    />
-                    <XAxis
-                      dataKey="name"
-                      tick={{ fill: '#94a3b8', fontSize: 12 }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      tick={{ fill: '#94a3b8', fontSize: 12 }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <Tooltip
-                      cursor={{ fill: '#1e293b', opacity: 0.4 }}
-                      contentStyle={{
-                        backgroundColor: '#0f172a',
-                        borderColor: '#334155',
-                        borderRadius: '8px',
-                      }}
-                    />
-                    <Legend />
-
-                    {/* Renderizamos las barras dinámicamente según la data */}
-                    {Object.keys(activeModal.data[0] || {})
-                      .filter((k) => k !== 'name')
-                      .map((key, index) => (
-                        <Bar
-                          key={key}
-                          dataKey={key}
-                          fill={index === 0 ? '#3b82f6' : '#10b981'}
-                          radius={[4, 4, 0, 0]}
-                          barSize={40}
-                        />
+                  {activeModal.chartType === 'pie' ? (
+                    <PieChart>
+                      <Pie data={activeModal.data} cx="50%" cy="50%" innerRadius={70} outerRadius={105} paddingAngle={4} dataKey="value" stroke="none">
+                        {activeModal.data.map((entry, index) => (
+                          <Cell key={index} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', borderRadius: '8px', color: '#f8fafc' }} itemStyle={{ color: '#f8fafc' }} />
+                      <Legend verticalAlign="bottom" height={36} />
+                    </PieChart>
+                  ) : (
+                    <BarChart data={activeModal.data} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e293b" />
+                      <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <Tooltip cursor={{ fill: '#1e293b', opacity: 0.4 }} contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', borderRadius: '8px', color: '#f8fafc' }} itemStyle={{ color: '#f8fafc' }} />
+                      <Legend />
+                      {Object.keys(activeModal.data[0] || {}).filter((k) => k !== 'name').map((key, index) => (
+                        <Bar key={key} dataKey={key} fill={index === 0 ? '#3b82f6' : '#10b981'} radius={[4, 4, 0, 0]} barSize={36} />
                       ))}
-                  </BarChart>
+                    </BarChart>
+                  )}
                 </ResponsiveContainer>
               </div>
             </div>
@@ -536,22 +480,27 @@ export default function App() {
 
       {/* BARRA SUPERIOR (HEADER) */}
       <div className="bg-[#131b2c] border-b border-slate-800 sticky top-0 z-40 shadow-md w-full flex justify-center">
-        <div className="w-full max-w-[1300px] px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="w-full max-w-[1400px] px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
               <Layers className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-white tracking-wide leading-tight">
-                Dashboard Ejecutivo IT
-              </h1>
-              <p className="text-slate-500 text-xs font-medium">
-                Evaluación de Desempeño Operativo e Incentivos
-              </p>
+              <h1 className="text-lg font-bold text-white tracking-wide leading-tight">Dashboard Ejecutivo IT</h1>
+              <p className="text-slate-500 text-xs font-medium">Evaluación Operativa, CSAT e Incentivos</p>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={exportPDF}
+              disabled={isExporting}
+              className="flex items-center gap-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-semibold py-2 px-3.5 rounded-lg transition-colors border border-emerald-500/20 active:scale-95"
+            >
+              <Download className="w-4 h-4" />
+              {isExporting ? 'Generando PDF...' : 'Exportar PDF'}
+            </button>
+
             <div className="flex bg-[#090e17] rounded-lg p-1 border border-slate-800">
               <Filter className="w-4 h-4 text-slate-500 ml-2 mt-2" />
               <select
@@ -559,13 +508,9 @@ export default function App() {
                 value={selectedDept}
                 onChange={(e) => setSelectedDept(e.target.value)}
               >
-                <option value="Todos" className="bg-[#131b2c]">
-                  Dpto: Todos
-                </option>
-                {uniqueDepts.map((dept) => (
-                  <option key={dept} value={dept} className="bg-[#131b2c]">
-                    {dept}
-                  </option>
+                <option value="Todos" className="bg-[#131b2c]">Dpto: Todos</option>
+                {OFFICIAL_DEPTS.map((dept) => (
+                  <option key={dept} value={dept} className="bg-[#131b2c]">{dept}</option>
                 ))}
               </select>
             </div>
@@ -577,41 +522,29 @@ export default function App() {
                 value={selectedUser}
                 onChange={(e) => setSelectedUser(e.target.value)}
               >
-                <option value="Todos" className="bg-[#131b2c]">
-                  Técnico: Todos
-                </option>
-                {uniqueUsers.map((user) => (
-                  <option key={user} value={user} className="bg-[#131b2c]">
-                    {user}
-                  </option>
+                <option value="Todos" className="bg-[#131b2c]">Técnico: Todos</option>
+                {displayedUsers.map((user) => (
+                  <option key={user} value={user} className="bg-[#131b2c]">{user}</option>
                 ))}
               </select>
             </div>
 
-            <button
-              onClick={() => {
-                setAllTickets([]);
-              }}
-              className="text-xs font-semibold bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 py-2.5 px-4 rounded-lg transition-colors border border-rose-500/20"
-            >
+            <button onClick={() => { setAllTickets([]); setSelectedDept('Todos'); setSelectedUser('Todos'); }} className="text-xs font-semibold bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 py-2 px-3 rounded-lg transition-colors border border-rose-500/20">
               Cerrar Reporte
             </button>
           </div>
         </div>
       </div>
 
-      <div className="w-full max-w-[1300px] px-6 mt-8 space-y-8">
-        {/* INSIGHTS GENERADOS POR IA (AHORA SON BOTONES) */}
-        <div className="flex flex-col md:flex-row gap-4">
+      <div ref={pdfRef} className="w-full max-w-[1400px] px-6 mt-8 space-y-8 pb-4">
+        
+        {/* INSIGHTS BOTONES */}
+        <div className="flex flex-col md:flex-row gap-4" data-html2canvas-ignore="true">
           <div className="bg-gradient-to-r from-blue-900/40 to-purple-900/40 border border-blue-500/20 rounded-xl p-4 flex items-center justify-center gap-4 flex-shrink-0 w-full md:w-auto">
             <Sparkles className="w-8 h-8 text-blue-400 animate-pulse" />
             <div>
-              <p className="text-xs font-bold text-blue-300 uppercase tracking-widest mb-1">
-                Smart Insights
-              </p>
-              <p className="text-xs text-blue-100">
-                Haz clic para ver detalles.
-              </p>
+              <p className="text-xs font-bold text-blue-300 uppercase tracking-widest mb-1">Smart Insights</p>
+              <p className="text-xs text-blue-100">Haz clic para ver detalles.</p>
             </div>
           </div>
           <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -620,266 +553,123 @@ export default function App() {
                 key={insight.id}
                 onClick={() => setActiveModal(insight)}
                 className={`text-left rounded-xl p-4 border transition-all hover:scale-[1.02] active:scale-95 shadow-sm hover:shadow-lg ${
-                  insight.type === 'success'
-                    ? 'bg-emerald-950/30 border-emerald-900/50 hover:bg-emerald-900/40 text-emerald-200'
-                    : insight.type === 'warning'
-                    ? 'bg-amber-950/30 border-amber-900/50 hover:bg-amber-900/40 text-amber-200'
-                    : insight.type === 'danger'
-                    ? 'bg-rose-950/30 border-rose-900/50 hover:bg-rose-900/40 text-rose-200'
-                    : 'bg-slate-800/50 border-slate-700/50 hover:bg-slate-700/60 text-slate-300'
+                  insight.type === 'success' ? 'bg-emerald-950/30 border-emerald-900/50 hover:bg-emerald-900/40 text-emerald-200'
+                  : insight.type === 'warning' ? 'bg-amber-950/30 border-amber-900/50 hover:bg-amber-900/40 text-amber-200'
+                  : insight.type === 'danger' ? 'bg-rose-950/30 border-rose-900/50 hover:bg-rose-900/40 text-rose-200'
+                  : 'bg-slate-800/50 border-slate-700/50 hover:bg-slate-700/60 text-slate-300'
                 } flex items-start gap-3`}
               >
                 <div className="mt-0.5">
-                  {insight.type === 'success' && (
-                    <CheckCircle className="w-4 h-4 text-emerald-400" />
-                  )}
-                  {insight.type === 'warning' && (
-                    <AlertTriangle className="w-4 h-4 text-amber-400" />
-                  )}
-                  {insight.type === 'danger' && (
-                    <AlertOctagon className="w-4 h-4 text-rose-400" />
-                  )}
-                  {insight.type === 'info' && (
-                    <TrendingUp className="w-4 h-4 text-blue-400" />
-                  )}
+                  {insight.type === 'success' && <CheckCircle className="w-4 h-4 text-emerald-400" />}
+                  {insight.type === 'warning' && <AlertTriangle className="w-4 h-4 text-amber-400" />}
+                  {insight.type === 'danger' && <AlertOctagon className="w-4 h-4 text-rose-400" />}
+                  {insight.type === 'info' && <TrendingUp className="w-4 h-4 text-blue-400" />}
                 </div>
                 <div className="flex-1">
-                  <p className="text-[11px] font-bold uppercase tracking-wider mb-1 opacity-70">
-                    Ver Gráfico Analítico
-                  </p>
-                  <p className="text-xs font-medium leading-relaxed">
-                    {insight.text}
-                  </p>
+                  <p className="text-[11px] font-bold uppercase tracking-wider mb-1 opacity-70">Ver Gráfico Analítico</p>
+                  <p className="text-xs font-medium leading-relaxed">{insight.text}</p>
                 </div>
               </button>
             ))}
           </div>
         </div>
 
-        {/* NAVEGACIÓN POR PESTAÑAS */}
-        <div className="flex space-x-1 bg-[#131b2c] p-1 rounded-xl border border-slate-800 w-fit">
-          <TabButton
-            active={activeTab === 'dashboard'}
-            onClick={() => setActiveTab('dashboard')}
-            icon={<BarChart3 />}
-            text="Resumen Ejecutivo"
-          />
-          <TabButton
-            active={activeTab === 'team'}
-            onClick={() => setActiveTab('team')}
-            icon={<Award />}
-            text="Desempeño del Equipo"
-          />
-          <TabButton
-            active={activeTab === 'raw'}
-            onClick={() => setActiveTab('raw')}
-            icon={<List />}
-            text="Auditoría de Tickets"
-          />
+        {/* NAVEGACIÓN PESTAÑAS */}
+        <div className="flex space-x-1 bg-[#131b2c] p-1 rounded-xl border border-slate-800 w-fit" data-html2canvas-ignore="true">
+          <TabButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<BarChart3 />} text="Resumen Ejecutivo" />
+          <TabButton active={activeTab === 'team'} onClick={() => setActiveTab('team')} icon={<Award />} text="Desempeño del Equipo" />
+          <TabButton active={activeTab === 'raw'} onClick={() => setActiveTab('raw')} icon={<List />} text="Auditoría de Tickets" />
         </div>
 
         {/* PESTAÑA 1: DASHBOARD */}
         {activeTab === 'dashboard' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+            <div className={`grid grid-cols-2 ${hasCsatData ? 'lg:grid-cols-7' : 'lg:grid-cols-6'} gap-4`}>
               <KpiCard
-                title="TOTAL TICKETS"
-                value={stats.total}
-                subtitle="Volumen procesado"
-                icon={<Ticket />}
-                color="slate"
+                title="TOTAL TICKETS" value={stats.total} subtitle="Volumen procesado" icon={<Ticket />} color="slate"
+                onClick={() => setActiveModal({ id: 'modal-total', type: 'chart', title: 'Distribución de Volumen por Técnico', chartType: 'bar', data: stats.users.slice(0, 8).map((u) => ({ name: u.name.split(' ')[0], Tickets: u.total })) })}
               />
               <KpiCard
-                title="% RESOLUCIÓN"
-                value={stats.resolutionRateGlobal}
-                subtitle="Tasa de Cierre"
-                icon={<CheckCircle />}
-                color="blue"
+                title="% RESOLUCIÓN" value={stats.resolutionRateGlobal} subtitle="Tasa de Cierre" icon={<CheckCircle />} color="blue"
+                onClick={() => setActiveModal({ id: 'modal-status-pie', type: 'chart', title: 'Porcentaje y Estatus de Cierre', chartType: 'pie', data: stats.status })}
               />
+              <KpiCard title="DENTRO DE SLA" value={stats.total - stats.slaViolations} subtitle="A tiempo" icon={<TrendingUp />} color="emerald" />
               <KpiCard
-                title="DENTRO DE SLA"
-                value={stats.total - stats.slaViolations}
-                subtitle="A tiempo"
-                icon={<TrendingUp />}
-                color="emerald"
+                title="VIOLACIONES SLA" value={stats.slaViolations} subtitle="Incumplimientos" icon={<AlertTriangle />} color={stats.slaViolations > 0 ? 'rose' : 'emerald'}
+                onClick={() => setActiveModal({ id: 'modal-violaciones', type: 'chart', title: 'Violaciones de SLA por Integrante', chartType: 'bar', data: stats.users.filter((u) => u.violations > 0).map((u) => ({ name: u.name.split(' ')[0], Violaciones: u.violations })) })}
               />
-              <KpiCard
-                title="VIOLACIONES SLA"
-                value={stats.slaViolations}
-                subtitle="Incumplimientos"
-                icon={<AlertTriangle />}
-                color={stats.slaViolations > 0 ? 'rose' : 'emerald'}
-              />
-              <KpiCard
-                title="% CUMPLIMIENTO SLA"
-                value={stats.complianceRateGlobal}
-                subtitle="Tasa de efectividad"
-                icon={<Layers />}
-                color={stats.isApprovedGlobal ? 'emerald' : 'amber'}
-                highlight
-              />
+              
+              {hasCsatData && (
+                <KpiCard 
+                  title="HAPPINESS RATING" 
+                  value={stats.globalCsatAverage !== null ? `${stats.globalCsatAverage.toFixed(1)}%` : '0%'} 
+                  subtitle="Satisfacción del Cliente" 
+                  icon={<Smile />} 
+                  color={stats.globalCsatAverage !== null && stats.globalCsatAverage >= 90 ? "emerald" : "amber"} 
+                />
+              )}
 
-              <div
-                className={`p-4 rounded-2xl border flex flex-col justify-center items-center text-center relative overflow-hidden ${
-                  stats.isApprovedGlobal
-                    ? 'bg-gradient-to-br from-emerald-900/40 to-emerald-800/20 border-emerald-500/30'
-                    : 'bg-gradient-to-br from-amber-900/40 to-amber-800/20 border-amber-500/30'
-                }`}
-              >
-                <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mb-2 z-10">
-                  Dictamen Incentivo
-                </p>
-                <p
-                  className={`text-2xl font-extrabold z-10 ${
-                    stats.isApprovedGlobal
-                      ? 'text-emerald-400'
-                      : 'text-amber-400'
-                  }`}
-                >
+              <KpiCard title="% CUMPLIMIENTO SLA" value={`${stats.complianceRateGlobalNum.toFixed(1)}%`} subtitle="SLA Operativo" icon={<Layers />} color={stats.complianceRateGlobalNum >= 85 ? 'emerald' : 'amber'} highlight />
+
+              <div className={`p-4 rounded-2xl border flex flex-col justify-center items-center text-center relative overflow-hidden ${stats.isApprovedGlobal ? 'bg-gradient-to-br from-emerald-900/40 to-emerald-800/20 border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.15)]' : 'bg-gradient-to-br from-amber-900/40 to-amber-800/20 border-amber-500/30'}`}>
+                <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mb-2 z-10">Dictamen Final</p>
+                <p className={`text-2xl font-extrabold z-10 ${stats.isApprovedGlobal ? 'text-emerald-400' : 'text-amber-400'}`}>
                   {stats.isApprovedGlobal ? 'APROBADO' : 'REVISIÓN'}
                 </p>
-                <p className="text-[10px] text-slate-400 mt-2 z-10">
-                  Meta ≥ 85.0%
-                </p>
+                <p className="text-[9px] text-slate-400 mt-1 z-10">Meta ≥ 85.0%</p>
+                {hasCsatData && stats.finalGlobalCompliance > stats.complianceRateGlobalNum && (
+                  <p className="text-[10px] text-emerald-400 font-bold mt-1 z-10 animate-pulse">+ Bono CSAT Incluido</p>
+                )}
               </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="bg-[#131b2c] p-6 rounded-2xl border border-slate-800 shadow-sm">
-                <h3 className="text-sm font-bold text-white mb-6 uppercase tracking-wider">
-                  Distribución de Estatus
-                </h3>
-                <div className="h-[250px]">
+              <div 
+                onClick={() => setActiveModal({ id: 'modal-status', type: 'chart', title: 'Desglose Detallado de Estatus', chartType: 'pie', data: stats.status })}
+                className="bg-[#131b2c] p-6 rounded-2xl border border-slate-800 shadow-sm cursor-pointer hover:border-slate-600 transition-all group relative"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xs font-bold text-white uppercase tracking-wider">Distribución de Estatus</h3>
+                  <Maximize2 className="w-4 h-4 text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+                <div className="h-[250px] relative">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                      <Pie
-                        data={stats.status}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={65}
-                        outerRadius={90}
-                        paddingAngle={4}
-                        dataKey="value"
-                        stroke="none"
-                      >
-                        {stats.status.map((entry, index) => (
-                          <Cell
-                            key={index}
-                            fill={COLORS[index % COLORS.length]}
-                          />
-                        ))}
+                      <Pie data={stats.status} cx="50%" cy="50%" innerRadius={65} outerRadius={90} paddingAngle={4} dataKey="value" stroke="none">
+                        {stats.status.map((entry, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} />)}
                       </Pie>
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: '#090e17',
-                          borderColor: '#1e293b',
-                          borderRadius: '8px',
-                          color: '#fff',
-                        }}
-                      />
-                      <Legend
-                        verticalAlign="bottom"
-                        height={36}
-                        iconType="circle"
-                        wrapperStyle={{ fontSize: '11px', paddingTop: '20px' }}
-                      />
+                      <Tooltip contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', borderRadius: '8px', color: '#f8fafc' }} itemStyle={{ color: '#f8fafc' }} />
+                      <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px', paddingTop: '15px' }} />
+                      <text x="50%" y="46%" textAnchor="middle" dominantBaseline="middle" className="fill-white font-extrabold text-xl">{stats.resolutionRateGlobal}</text>
+                      <text x="50%" y="56%" textAnchor="middle" dominantBaseline="middle" className="fill-slate-400 text-[10px] uppercase font-bold tracking-wider">Resueltos</text>
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
               </div>
 
-              <div className="bg-[#131b2c] p-6 rounded-2xl border border-slate-800 shadow-sm col-span-1 lg:col-span-2">
-                <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-wider">
-                  Top Categorías Operativas
-                </h3>
+              <div 
+                onClick={() => setActiveModal({ id: 'modal-categories', type: 'chart', title: 'Top Categorías Operativas Ampliado', chartType: 'bar', data: stats.categories.map((c) => ({ name: c.name, Tickets: c.value })) })}
+                className="bg-[#131b2c] p-6 rounded-2xl border border-slate-800 shadow-sm col-span-1 lg:col-span-2 cursor-pointer hover:border-slate-600 transition-all group relative"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xs font-bold text-white uppercase tracking-wider">Top Categorías Operativas</h3>
+                  <Maximize2 className="w-4 h-4 text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
                 <div className="h-[250px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={stats.categories}
-                      layout="vertical"
-                      margin={{ top: 0, right: 30, left: 20, bottom: 0 }}
-                    >
-                      <CartesianGrid
-                        strokeDasharray="3 3"
-                        horizontal={false}
-                        stroke="#1e293b"
-                      />
-                      <XAxis
-                        type="number"
-                        tick={{ fontSize: 11, fill: '#64748b' }}
-                        axisLine={false}
-                        tickLine={false}
-                      />
-                      <YAxis
-                        dataKey="name"
-                        type="category"
-                        width={130}
-                        tick={{ fontSize: 11, fill: '#94a3b8' }}
-                        axisLine={false}
-                        tickLine={false}
-                      />
-                      <Tooltip
-                        cursor={{ fill: '#1e293b', opacity: 0.5 }}
-                        contentStyle={{
-                          backgroundColor: '#090e17',
-                          borderColor: '#1e293b',
-                          borderRadius: '8px',
-                        }}
-                      />
-                      <Bar
-                        dataKey="value"
-                        fill="#3b82f6"
-                        radius={[0, 6, 6, 0]}
-                        barSize={24}
-                      >
-                        {stats.categories.map((entry, index) => (
-                          <Cell
-                            key={index}
-                            fill={`url(#colorGradient${index % 4})`}
-                          />
-                        ))}
+                    <BarChart data={stats.categories} layout="vertical" margin={{ top: 0, right: 30, left: 20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#1e293b" />
+                      <XAxis type="number" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                      <YAxis dataKey="name" type="category" width={130} tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                      <Tooltip cursor={{ fill: '#1e293b', opacity: 0.5 }} contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', borderRadius: '8px', color: '#f8fafc' }} itemStyle={{ color: '#f8fafc' }} />
+                      <Bar dataKey="value" fill="#3b82f6" radius={[0, 6, 6, 0]} barSize={24}>
+                        {stats.categories.map((entry, index) => <Cell key={index} fill={`url(#colorGradient${index % 4})`} />)}
                       </Bar>
                       <defs>
-                        <linearGradient
-                          id="colorGradient0"
-                          x1="0"
-                          y1="0"
-                          x2="1"
-                          y2="0"
-                        >
-                          <stop offset="0%" stopColor="#3b82f6" />
-                          <stop offset="100%" stopColor="#60a5fa" />
-                        </linearGradient>
-                        <linearGradient
-                          id="colorGradient1"
-                          x1="0"
-                          y1="0"
-                          x2="1"
-                          y2="0"
-                        >
-                          <stop offset="0%" stopColor="#8b5cf6" />
-                          <stop offset="100%" stopColor="#a78bfa" />
-                        </linearGradient>
-                        <linearGradient
-                          id="colorGradient2"
-                          x1="0"
-                          y1="0"
-                          x2="1"
-                          y2="0"
-                        >
-                          <stop offset="0%" stopColor="#0ea5e9" />
-                          <stop offset="100%" stopColor="#38bdf8" />
-                        </linearGradient>
-                        <linearGradient
-                          id="colorGradient3"
-                          x1="0"
-                          y1="0"
-                          x2="1"
-                          y2="0"
-                        >
-                          <stop offset="0%" stopColor="#10b981" />
-                          <stop offset="100%" stopColor="#34d399" />
-                        </linearGradient>
+                        <linearGradient id="colorGradient0" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stopColor="#3b82f6" /><stop offset="100%" stopColor="#60a5fa" /></linearGradient>
+                        <linearGradient id="colorGradient1" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stopColor="#8b5cf6" /><stop offset="100%" stopColor="#a78bfa" /></linearGradient>
+                        <linearGradient id="colorGradient2" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stopColor="#0ea5e9" /><stop offset="100%" stopColor="#38bdf8" /></linearGradient>
+                        <linearGradient id="colorGradient3" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stopColor="#10b981" /><stop offset="100%" stopColor="#34d399" /></linearGradient>
                       </defs>
                     </BarChart>
                   </ResponsiveContainer>
@@ -895,8 +685,7 @@ export default function App() {
             <div className="px-6 py-5 bg-gradient-to-r from-slate-900 to-[#131b2c] border-b border-slate-800 flex items-center justify-between">
               <div>
                 <h3 className="text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                  <Award className="w-5 h-5 text-purple-500" /> Rendimiento y
-                  Bonos por Técnico
+                  <Award className="w-5 h-5 text-purple-500" /> Rendimiento y Bonos por Técnico
                 </h3>
               </div>
             </div>
@@ -904,105 +693,76 @@ export default function App() {
               <table className="w-full text-left border-collapse text-sm">
                 <thead>
                   <tr className="bg-slate-900/50 text-slate-400">
-                    <th className="px-6 py-4 font-semibold uppercase text-[10px] tracking-widest">
-                      Técnico
-                    </th>
-                    <th className="px-6 py-4 font-semibold uppercase text-[10px] tracking-widest">
-                      Dpto / Rol
-                    </th>
-                    <th className="px-6 py-4 font-semibold uppercase text-[10px] tracking-widest text-center">
-                      Asignados
-                    </th>
-                    <th className="px-6 py-4 font-semibold uppercase text-[10px] tracking-widest text-center">
-                      Resueltos
-                    </th>
-                    <th className="px-6 py-4 font-semibold uppercase text-[10px] tracking-widest text-center">
-                      Viol. SLA
-                    </th>
-                    <th className="px-6 py-4 font-semibold uppercase text-[10px] tracking-widest text-center">
-                      % Res.
-                    </th>
-                    <th className="px-6 py-4 font-semibold uppercase text-[10px] tracking-widest text-center">
-                      Salud SLA
-                    </th>
-                    <th className="px-6 py-4 font-semibold uppercase text-[10px] tracking-widest text-center">
-                      Incentivo
-                    </th>
+                    <th className="px-6 py-4 font-semibold uppercase text-[10px] tracking-widest">Técnico</th>
+                    <th className="px-6 py-4 font-semibold uppercase text-[10px] tracking-widest">Dpto / Rol</th>
+                    <th className="px-6 py-4 font-semibold uppercase text-[10px] tracking-widest text-center">Asignados</th>
+                    <th className="px-6 py-4 font-semibold uppercase text-[10px] tracking-widest text-center">Resueltos</th>
+                    <th className="px-6 py-4 font-semibold uppercase text-[10px] tracking-widest text-center">Viol. SLA</th>
+                    {hasCsatData && (
+                      <th className="px-6 py-4 font-semibold uppercase text-[10px] tracking-widest text-center">CSAT</th>
+                    )}
+                    <th className="px-6 py-4 font-semibold uppercase text-[10px] tracking-widest text-center">Salud SLA</th>
+                    <th className="px-6 py-4 font-semibold uppercase text-[10px] tracking-widest text-center">Incentivo</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/50">
                   {stats.users.map((user: UserStat, idx: number) => {
-                    const isApproved = user.numericSlaCompliance >= 85;
+                    const isApproved = user.finalComplianceWithBonus >= 85;
+                    const hasCsatBonus = isApproved && user.numericSlaCompliance < 85;
+
                     return (
-                      <tr
-                        key={idx}
-                        className="hover:bg-slate-800/40 transition-colors group"
-                      >
+                      <tr key={idx} className="hover:bg-slate-800/40 transition-colors group">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xs font-bold text-slate-300 group-hover:border-blue-500 transition-colors">
+                            <div className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xs font-bold text-slate-300">
                               {user.name.charAt(0)}
                             </div>
-                            <span className="font-semibold text-slate-200">
-                              {user.name}
-                            </span>
+                            <span className="font-semibold text-slate-200">{user.name}</span>
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <div className="text-xs text-slate-300">
-                            {user.dept}
-                          </div>
-                          <div className="text-[10px] text-slate-500">
-                            {user.role}
-                          </div>
+                          <div className="text-xs text-slate-300">{user.dept}</div>
+                          <div className="text-[10px] text-slate-500">{user.role}</div>
                         </td>
-                        <td className="px-6 py-4 text-center font-medium">
-                          {user.total}
-                        </td>
-                        <td className="px-6 py-4 text-center text-slate-400">
-                          {user.closed}
-                        </td>
+                        <td className="px-6 py-4 text-center font-medium">{user.total}</td>
+                        <td className="px-6 py-4 text-center text-slate-400">{user.closed}</td>
                         <td className="px-6 py-4 text-center">
                           {user.violations > 0 ? (
-                            <span className="inline-flex px-2 py-0.5 rounded text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20">
-                              {user.violations}
-                            </span>
+                            <span className="inline-flex px-2 py-0.5 rounded text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20">{user.violations}</span>
                           ) : (
                             <span className="text-slate-600">-</span>
                           )}
                         </td>
-                        <td className="px-6 py-4 text-center font-mono text-slate-300">
-                          {user.resolutionRate}
-                        </td>
+                        {hasCsatData && (
+                          <td className="px-6 py-4 text-center font-mono text-slate-300">
+                            {user.csatScore !== null ? (
+                              <span className={user.csatScore >= 90 ? 'text-emerald-400 font-bold' : ''}>
+                                {user.csatScore.toFixed(1)}%
+                              </span>
+                            ) : (
+                              <span className="text-slate-600">-</span>
+                            )}
+                          </td>
+                        )}
                         <td className="px-6 py-4 text-center">
                           <div className="flex flex-col items-center gap-1">
-                            <span
-                              className={`font-bold font-mono ${
-                                isApproved
-                                  ? 'text-emerald-400'
-                                  : 'text-amber-400'
-                              }`}
-                            >
-                              {user.slaCompliance}
+                            <span className={`font-bold font-mono ${isApproved ? 'text-emerald-400' : 'text-amber-400'}`}>
+                              {user.finalComplianceWithBonus.toFixed(1)}%
                             </span>
-                            <div className="w-16 h-1 bg-slate-800 rounded-full overflow-hidden">
-                              <div
-                                className={`h-full ${
-                                  isApproved ? 'bg-emerald-500' : 'bg-amber-500'
-                                }`}
-                                style={{ width: user.slaCompliance }}
-                              ></div>
+                            <div className="w-16 h-1 bg-slate-800 rounded-full overflow-hidden relative">
+                              <div className={`h-full absolute left-0 ${isApproved ? 'bg-emerald-500' : 'bg-amber-500'}`} style={{ width: `${user.numericSlaCompliance}%` }}></div>
+                              {hasCsatBonus && (
+                                <div className="h-full absolute bg-blue-400" style={{ left: `${user.numericSlaCompliance}%`, width: `${user.finalComplianceWithBonus - user.numericSlaCompliance}%` }}></div>
+                              )}
                             </div>
                           </div>
                         </td>
                         <td className="px-6 py-4 text-center">
-                          <span
-                            className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide border ${
-                              isApproved
-                                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.1)]'
-                                : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
-                            }`}
-                          >
+                          <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border ${
+                            isApproved 
+                            ? (hasCsatBonus ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.1)]') 
+                            : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                          }`}>
                             {user.incentiveStatus}
                           </span>
                         </td>
@@ -1015,115 +775,54 @@ export default function App() {
           </div>
         )}
 
-        {/* PESTAÑA 3: AUDITORÍA RAW */}
+        {/* PESTAÑA 3 */}
         {activeTab === 'raw' && (
           <div className="bg-[#131b2c] rounded-2xl border border-slate-800 shadow-xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 mb-10">
             <div className="px-6 py-5 bg-gradient-to-r from-slate-900 to-[#131b2c] border-b border-slate-800 flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                  <List className="w-5 h-5 text-blue-500" /> Auditoría de
-                  Tickets ({filteredTickets.length})
-                </h3>
-              </div>
+              <h3 className="text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                <List className="w-5 h-5 text-blue-500" /> Auditoría de Tickets ({filteredTickets.length})
+              </h3>
             </div>
             <div className="overflow-x-auto max-h-[600px]">
               <table className="w-full text-left border-collapse text-[12px] whitespace-nowrap">
                 <thead className="sticky top-0 bg-slate-900 text-slate-300 shadow-sm z-10">
                   <tr>
-                    <th className="px-5 py-3 font-semibold uppercase text-[10px] tracking-widest">
-                      ID
-                    </th>
-                    <th className="px-5 py-3 font-semibold uppercase text-[10px] tracking-widest">
-                      Owner
-                    </th>
-                    <th className="px-5 py-3 font-semibold uppercase text-[10px] tracking-widest">
-                      Categoría
-                    </th>
-                    <th className="px-5 py-3 font-semibold uppercase text-[10px] tracking-widest">
-                      Prioridad
-                    </th>
-                    <th className="px-5 py-3 font-semibold uppercase text-[10px] tracking-widest">
-                      Estatus
-                    </th>
-                    <th className="px-5 py-3 font-semibold uppercase text-[10px] tracking-widest">
-                      SLA Status
-                    </th>
-                    <th className="px-5 py-3 font-semibold uppercase text-[10px] tracking-widest">
-                      Tiempo Res.
-                    </th>
+                    <th className="px-5 py-3 font-semibold uppercase text-[10px]">ID</th>
+                    <th className="px-5 py-3 font-semibold uppercase text-[10px]">Owner</th>
+                    <th className="px-5 py-3 font-semibold uppercase text-[10px]">Categoría</th>
+                    {hasCsatData && (
+                      <th className="px-5 py-3 font-semibold uppercase text-[10px]">CSAT</th>
+                    )}
+                    <th className="px-5 py-3 font-semibold uppercase text-[10px]">Prioridad</th>
+                    <th className="px-5 py-3 font-semibold uppercase text-[10px]">Estatus</th>
+                    <th className="px-5 py-3 font-semibold uppercase text-[10px]">SLA Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/50">
                   {filteredTickets.map((t, idx) => {
-                    const slaViolation = getVal(
-                      t,
-                      ['SLA Violation Type', 'Tipo Violación SLA'],
-                      ''
-                    );
-                    const isViolation = slaViolation
-                      .toLowerCase()
-                      .includes('violation');
-                    const priority = getVal(
-                      t,
-                      ['Priority (Ticket)', 'Prioridad'],
-                      '-'
-                    );
+                    const isViolation = getVal(t, ['SLA Violation Type', 'Tipo Violación SLA'], '').toLowerCase().includes('violation');
+                    const priority = getVal(t, ['Priority (Ticket)', 'Prioridad'], '-');
+                    const csat = getVal(t, ['CSAT', 'Happiness Rating', 'Happiness', 'Satisfaction', 'Satisfacción', 'Rating'], 'N/A');
 
                     return (
-                      <tr
-                        key={idx}
-                        className={`hover:bg-slate-800/40 transition-colors ${
-                          isViolation ? 'bg-rose-950/10' : ''
-                        }`}
-                      >
-                        <td className="px-5 py-2.5 font-mono text-blue-400">
-                          {getVal(t, ['Ticket Id', 'Ticket ID'], '-')}
-                        </td>
-                        <td className="px-5 py-2.5 text-slate-200 font-medium">
-                          {getVal(t, ['Ticket Owner', 'Técnico'], '-')}
-                        </td>
-                        <td className="px-5 py-2.5 text-slate-400 truncate max-w-[200px]">
-                          {getVal(
-                            t,
-                            ['Product Name (Ticket)', 'Categoría'],
-                            '-'
-                          )}
-                        </td>
+                      <tr key={idx} className={`hover:bg-slate-800/40 ${isViolation ? 'bg-rose-950/10' : ''}`}>
+                        <td className="px-5 py-2.5 font-mono text-blue-400">{getVal(t, ['Ticket Id', 'Ticket ID'], '-')}</td>
+                        <td className="px-5 py-2.5 text-slate-200">{getVal(t, ['Ticket Owner', 'Técnico'], '-')}</td>
+                        <td className="px-5 py-2.5 text-slate-400 truncate max-w-[150px]">{getVal(t, ['Product Name (Ticket)', 'Categoría'], '-')}</td>
+                        {hasCsatData && (
+                          <td className="px-5 py-2.5 text-slate-400">{csat}</td>
+                        )}
                         <td className="px-5 py-2.5">
-                          <span
-                            className={`px-2 py-0.5 rounded text-[10px] uppercase tracking-wider font-bold ${
-                              priority.toLowerCase().includes('high')
-                                ? 'bg-rose-500/20 text-rose-400'
-                                : priority.toLowerCase().includes('medium')
-                                ? 'bg-amber-500/20 text-amber-400'
-                                : 'bg-slate-800 text-slate-400'
-                            }`}
-                          >
+                          <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold ${priority.toLowerCase().includes('high') ? 'bg-rose-500/20 text-rose-400' : 'bg-slate-800 text-slate-400'}`}>
                             {priority}
                           </span>
                         </td>
-                        <td className="px-5 py-2.5 text-slate-400">
-                          {getVal(t, ['Status (Ticket)', 'Estado'], '-')}
-                        </td>
+                        <td className="px-5 py-2.5 text-slate-400">{getVal(t, ['Status (Ticket)', 'Estado'], '-')}</td>
                         <td className="px-5 py-2.5">
                           {isViolation ? (
-                            <span className="text-rose-400 font-medium flex items-center gap-1">
-                              <AlertOctagon className="w-3 h-3" /> Violación
-                            </span>
+                            <span className="text-rose-400 font-medium flex items-center gap-1"><AlertOctagon className="w-3 h-3"/> Violación</span>
                           ) : (
-                            <span className="text-emerald-500/70 flex items-center gap-1">
-                              <CheckCircle className="w-3 h-3" /> OK
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-5 py-2.5 text-slate-500 font-mono text-[11px]">
-                          {getVal(
-                            t,
-                            [
-                              'Resolution Time in Business Hours',
-                              'Tiempo Resolución',
-                            ],
-                            '-'
+                            <span className="text-emerald-500/70 flex items-center gap-1"><CheckCircle className="w-3 h-3"/> OK</span>
                           )}
                         </td>
                       </tr>
@@ -1139,76 +838,34 @@ export default function App() {
   );
 }
 
-function TabButton({
-  active,
-  onClick,
-  icon,
-  text,
-}: {
-  active: boolean;
-  onClick: () => void;
-  icon: React.ReactNode;
-  text: string;
-}) {
+function TabButton({ active, onClick, icon, text }: { active: boolean, onClick: () => void, icon: React.ReactNode, text: string }) {
   return (
-    <button
-      onClick={onClick}
-      className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-        active
-          ? 'bg-slate-800 text-white shadow-sm'
-          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-      }`}
-    >
-      <div className={active ? 'text-blue-400' : 'text-slate-500'}>
-        {React.cloneElement(icon as React.ReactElement, { size: 16 })}
-      </div>
-      {text}
+    <button onClick={onClick} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${active ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'}`}>
+      <div className={active ? 'text-blue-400' : 'text-slate-500'}>{React.cloneElement(icon as React.ReactElement, { size: 16 })}</div>{text}
     </button>
   );
 }
 
-function KpiCard({
-  title,
-  value,
-  subtitle,
-  icon,
-  color = 'slate',
-  highlight = false,
-}: {
-  title: string;
-  value: string | number;
-  subtitle: string;
-  icon: React.ReactNode;
-  color?: 'slate' | 'blue' | 'emerald' | 'rose' | 'amber';
-  highlight?: boolean;
-}) {
+function KpiCard({ title, value, subtitle, icon, color = 'slate', highlight = false, onClick }: { title: string, value: string | number, subtitle: string, icon: React.ReactNode, color?: 'slate' | 'blue' | 'emerald' | 'rose' | 'amber', highlight?: boolean, onClick?: () => void }) {
   const colorMap = {
-    slate: 'from-slate-800 to-slate-900 border-slate-700 text-slate-400',
-    blue: 'from-blue-900/40 to-slate-900 border-blue-500/30 text-blue-400',
-    emerald:
-      'from-emerald-900/40 to-slate-900 border-emerald-500/30 text-emerald-400',
-    rose: 'from-rose-900/40 to-slate-900 border-rose-500/30 text-rose-400',
-    amber: 'from-amber-900/40 to-slate-900 border-amber-500/30 text-amber-400',
+    slate: 'from-slate-800 to-slate-900 border-slate-700 text-slate-400 hover:border-slate-500',
+    blue: 'from-blue-900/40 to-slate-900 border-blue-500/30 text-blue-400 hover:border-blue-400',
+    emerald: 'from-emerald-900/40 to-slate-900 border-emerald-500/30 text-emerald-400 hover:border-emerald-400',
+    rose: 'from-rose-900/40 to-slate-900 border-rose-500/30 text-rose-400 hover:border-rose-400',
+    amber: 'from-amber-900/40 to-slate-900 border-amber-500/30 text-amber-400 hover:border-amber-400',
   };
 
   return (
     <div
-      className={`p-4 rounded-2xl border bg-gradient-to-br ${
-        colorMap[color]
-      } shadow-sm flex flex-col justify-between relative overflow-hidden group ${
-        highlight
-          ? 'shadow-[0_0_15px_rgba(255,255,255,0.05)] ring-1 ring-white/10'
-          : ''
-      }`}
+      onClick={onClick}
+      className={`p-4 rounded-2xl border bg-gradient-to-br ${colorMap[color]} shadow-sm flex flex-col justify-between relative overflow-hidden group transition-all ${onClick ? 'cursor-pointer hover:scale-[1.02] active:scale-95' : ''} ${highlight ? 'shadow-[0_0_15px_rgba(255,255,255,0.05)] ring-1 ring-white/10' : ''}`}
     >
-      <div
-        className={`absolute -right-4 -top-4 w-16 h-16 rounded-full bg-current opacity-[0.03] group-hover:scale-150 transition-transform duration-500`}
-      ></div>
+      <div className="absolute -right-4 -top-4 w-16 h-16 rounded-full bg-current opacity-[0.03] group-hover:scale-150 transition-transform duration-500"></div>
       <div className="flex items-start justify-between mb-2">
-        <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">
-          {title}
+        <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest flex items-center gap-1">
+          {title} {onClick && <Sparkles className="w-3 h-3 opacity-50 text-blue-400" />}
         </span>
-        <div className={`opacity-80`}>
+        <div className="opacity-80">
           {React.cloneElement(icon as React.ReactElement, { size: 16 })}
         </div>
       </div>
