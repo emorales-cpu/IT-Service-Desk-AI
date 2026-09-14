@@ -7,7 +7,7 @@ import {
 import {
   Upload, Users, AlertTriangle, CheckCircle, Ticket, Layers, Filter, AlertOctagon,
   Sparkles, TrendingUp, BarChart3, List, Award, X, Download, Maximize2, Smile,
-  Calendar, Clock, Sliders
+  Calendar, Clock, Sliders, ChevronDown
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
@@ -36,7 +36,7 @@ const DEMO_TICKETS = [
   { 'Ticket Id': 'TK-1001', 'Ticket Owner': 'Joan Perez', 'Sub-departamento': 'Soporte Técnico', 'Status (Ticket)': 'Closed', 'SLA Violation Type': 'Not Violated', 'Product Name (Ticket)': 'Hardware', 'Request Level': 'Service Desk N2', 'Priority (Ticket)': 'High', 'Resolution Time in Business Hours': '1h 30m', 'Happiness Rating': '100%', 'Created Time': '2026-09-01 09:00:00' },
   { 'Ticket Id': 'TK-1002', 'Ticket Owner': 'Joan Perez', 'Sub-departamento': 'Soporte Técnico', 'Status (Ticket)': 'Resolved', 'SLA Violation Type': 'Not Violated', 'Product Name (Ticket)': 'Impresoras', 'Request Level': 'Service Desk N2', 'Priority (Ticket)': 'Medium', 'Resolution Time in Business Hours': '45m', 'Happiness Rating': '95%', 'Created Time': '2026-09-02 11:15:00' },
   { 'Ticket Id': 'TK-1003', 'Ticket Owner': 'Jean Nunez', 'Sub-departamento': 'Soporte Técnico', 'Status (Ticket)': 'Closed', 'SLA Violation Type': 'Not Violated', 'Product Name (Ticket)': 'Software', 'Request Level': 'Service Desk N2', 'Priority (Ticket)': 'Low', 'Resolution Time in Business Hours': '2h 10m', 'Happiness Rating': '90%', 'Created Time': '2026-09-03 14:20:00' },
-  { 'Ticket Id': 'TK-1004', 'Ticket Owner': 'Eriksson Morales', 'Sub-departamento': 'Soporte Técnico', 'Status (Ticket)': 'Open', 'SLA Violation Type': 'Resolution Violation', 'Product Name (Ticket)': 'Redes', 'Request Level': 'Service Desk N2', 'Priority (Ticket)': 'High', 'Resolution Time in Business Hours': '12h 00m', 'Happiness Rating': '85%', 'Created Time': '2026-09-04 10:05:00' },
+  { 'Ticket Id': 'TK-1004', 'Ticket Owner': 'Eriksson Morales', 'Sub-departamento': 'Soporte Técnico', 'Status (Ticket)': 'Open', 'SLA Violation Type': 'Resolution Violation', 'Product Name (Ticket)': 'Redes', 'Request Level': 'N1 (Service Desk)', 'Priority (Ticket)': 'High', 'Resolution Time in Business Hours': '12h 00m', 'Happiness Rating': '85%', 'Created Time': '2026-09-04 10:05:00' },
   { 'Ticket Id': 'TK-1005', 'Ticket Owner': 'Henry Garcia', 'Sub-departamento': 'Soporte Técnico', 'Status (Ticket)': 'Closed', 'SLA Violation Type': 'Not Violated', 'Product Name (Ticket)': 'Correo', 'Request Level': 'Service Desk N2', 'Priority (Ticket)': 'Medium', 'Resolution Time in Business Hours': '1h 00m', 'Happiness Rating': '100%', 'Created Time': '2026-09-05 16:30:00' },
   { 'Ticket Id': 'TK-1006', 'Ticket Owner': 'Enmanuel Jerez', 'Sub-departamento': 'Sistemas & Aplicaciones', 'Status (Ticket)': 'Closed', 'SLA Violation Type': 'Resolution Violation', 'Product Name (Ticket)': 'ITR Hub', 'Request Level': 'ITR Hub & CRM', 'Priority (Ticket)': 'High', 'Resolution Time in Business Hours': '8h 00m', 'Happiness Rating': '100%', 'Created Time': '2026-09-06 09:10:00' },
   { 'Ticket Id': 'TK-1007', 'Ticket Owner': 'Enmanuel Jerez', 'Sub-departamento': 'Sistemas & Aplicaciones', 'Status (Ticket)': 'Closed', 'SLA Violation Type': 'Not Violated', 'Product Name (Ticket)': 'Salesforce', 'Request Level': 'ITR Hub & CRM', 'Priority (Ticket)': 'Medium', 'Resolution Time in Business Hours': '2h 00m', 'Happiness Rating': '98%', 'Created Time': '2026-09-07 13:40:00' },
@@ -60,6 +60,10 @@ interface InsightModal {
 }
 
 export default function App() {
+  useEffect(() => {
+    document.title = "IT TICKETS & INCENTIVOS";
+  }, []);
+
   const [allTickets, setAllTickets] = useState<TicketData[]>([]);
   const [loading, setLoading] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -147,7 +151,14 @@ export default function App() {
         const renderWidth = (imgProps.width * pdfHeight) / imgProps.height;
         pdf.addImage(imgData, 'PNG', (pdfWidth - renderWidth) / 2, 0, renderWidth, pdfHeight);
       }
-      pdf.save(`Reporte_SLA_${selectedUser !== 'Todos' ? selectedUser : 'Global'}.pdf`);
+      
+      const currentUser = selectedUser !== 'Todos'
+        ? selectedUser
+        : d2Agent !== 'Todos'
+          ? d2Agent
+          : 'Global';
+      const formattedName = currentUser.replace(/\s+/g, '_');
+      pdf.save(`Reporte_Tickets_Abiertos_${formattedName}.pdf`);
     } catch (error) {
       console.error('Error al exportar PDF:', error);
       alert('Hubo un error al generar el PDF.');
@@ -342,7 +353,7 @@ export default function App() {
 
   const displayedUsers = selectedDept === 'Todos' ? uniqueUsers : uniqueUsers.filter(user => EQUIPO_IT[user]?.dept === selectedDept || (EQUIPO_IT[user] === undefined && selectedDept === 'Sin Asignar'));
 
-  // 🌟 PANTALLA DE BIENVENIDA MÁS CLARA Y CLÁSICA (SEGUN FOTO 1)
+  // 🌟 PANTALLA DE BIENVENIDA MÁS CLARA Y CLÁSICA
   if (allTickets.length === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#0f172a] flex flex-col items-center justify-center p-6 text-slate-100">
@@ -397,7 +408,7 @@ export default function App() {
                       <Pie data={activeModal.data} cx="50%" cy="50%" innerRadius={70} outerRadius={105} paddingAngle={4} dataKey="value" stroke="none">
                         {activeModal.data.map((entry, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} />)}
                       </Pie>
-                      <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', color: '#f8fafc' }} itemStyle={{ color: '#f8fafc' }} />
+                      <Tooltip wrapperStyle={{ pointerEvents: 'none' }} contentStyle={{ backgroundColor: '#0f172a', borderColor: '#3b82f6', borderRadius: '8px', color: '#ffffff' }} itemStyle={{ color: '#ffffff', fontWeight: 'bold' }} labelStyle={{ color: '#ffffff', fontWeight: 'bold' }} />
                       <Legend verticalAlign="bottom" height={36} />
                     </PieChart>
                   ) : (
@@ -405,7 +416,7 @@ export default function App() {
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" />
                       <XAxis dataKey="name" tick={{ fill: '#cbd5e1', fontSize: 11 }} axisLine={false} tickLine={false} />
                       <YAxis tick={{ fill: '#cbd5e1', fontSize: 11 }} axisLine={false} tickLine={false} />
-                      <Tooltip cursor={{ fill: '#334155', opacity: 0.4 }} contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', color: '#f8fafc' }} itemStyle={{ color: '#f8fafc' }} />
+                      <Tooltip wrapperStyle={{ pointerEvents: 'none' }} cursor={{ fill: '#334155', opacity: 0.4 }} contentStyle={{ backgroundColor: '#0f172a', borderColor: '#3b82f6', borderRadius: '8px', color: '#ffffff' }} itemStyle={{ color: '#ffffff', fontWeight: 'bold' }} labelStyle={{ color: '#ffffff', fontWeight: 'bold' }} />
                       <Legend />
                       {Object.keys(activeModal.data[0] || {}).filter((k) => k !== 'name').map((key, index) => (
                         <Bar key={key} dataKey={key} fill={index === 0 ? '#3b82f6' : '#10b981'} radius={[4, 4, 0, 0]} barSize={36} />
@@ -419,7 +430,7 @@ export default function App() {
         </div>
       )}
 
-      {/* BARRA SUPERIOR (HEADER CLÁSICO MÁS CLARO) */}
+      {/* BARRA SUPERIOR HEADER */}
       <div className="bg-[#1e293b]/90 backdrop-blur-md border-b border-slate-700/80 sticky top-0 z-40 shadow-lg w-full flex justify-center">
         <div className="w-full max-w-[1400px] px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
@@ -435,19 +446,19 @@ export default function App() {
             <button onClick={exportPDF} disabled={isExporting} className="flex items-center gap-2 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 text-xs font-bold py-2 px-3.5 rounded-lg transition-colors border border-emerald-500/30 active:scale-95">
               <Download className="w-4 h-4" />{isExporting ? 'Generando PDF...' : 'Exportar PDF'}
             </button>
-            <div className="flex bg-[#0f172a] rounded-lg p-1 border border-slate-700">
-              <Filter className="w-4 h-4 text-slate-400 ml-2 mt-2" />
-              <select className="bg-transparent border-none text-slate-200 text-sm focus:ring-0 cursor-pointer py-1.5 pl-2 pr-6 outline-none appearance-none font-medium" value={selectedDept} onChange={(e) => setSelectedDept(e.target.value)}>
-                <option value="Todos" className="bg-[#1e293b]">Dpto: Todos</option>
-                {OFFICIAL_DEPTS.map((dept) => <option key={dept} value={dept} className="bg-[#1e293b]">{dept}</option>)}
-              </select>
+            <div className="w-44">
+              <CustomSelect
+                value={selectedDept}
+                onChange={setSelectedDept}
+                options={[{ value: 'Todos', label: 'Dpto: Todos' }, ...OFFICIAL_DEPTS.map(d => ({ value: d, label: d }))]}
+              />
             </div>
-            <div className="flex bg-[#0f172a] rounded-lg p-1 border border-slate-700">
-              <Users className="w-4 h-4 text-slate-400 ml-2 mt-2" />
-              <select className="bg-transparent border-none text-slate-200 text-sm focus:ring-0 cursor-pointer py-1.5 pl-2 pr-6 outline-none appearance-none font-medium" value={selectedUser} onChange={(e) => setSelectedUser(e.target.value)}>
-                <option value="Todos" className="bg-[#1e293b]">Técnico: Todos</option>
-                {displayedUsers.map((user) => <option key={user} value={user} className="bg-[#1e293b]">{user}</option>)}
-              </select>
+            <div className="w-48">
+              <CustomSelect
+                value={selectedUser}
+                onChange={setSelectedUser}
+                options={[{ value: 'Todos', label: 'Técnico: Todos' }, ...displayedUsers.map(u => ({ value: u, label: u }))]}
+              />
             </div>
             <button onClick={() => { setAllTickets([]); setSelectedDept('Todos'); setSelectedUser('Todos'); }} className="text-xs font-bold bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 py-2 px-3 rounded-lg transition-colors border border-rose-500/30">
               Cerrar Reporte
@@ -522,10 +533,10 @@ export default function App() {
                       <Pie data={stats.status} cx="50%" cy="50%" innerRadius={65} outerRadius={90} paddingAngle={4} dataKey="value" stroke="none">
                         {stats.status.map((entry, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} />)}
                       </Pie>
-                      <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', color: '#f8fafc' }} itemStyle={{ color: '#f8fafc' }} />
+                      <Tooltip wrapperStyle={{ pointerEvents: 'none' }} contentStyle={{ backgroundColor: '#0f172a', borderColor: '#3b82f6', borderRadius: '8px', color: '#ffffff' }} itemStyle={{ color: '#ffffff', fontWeight: 'bold' }} labelStyle={{ color: '#ffffff', fontWeight: 'bold' }} />
                       <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px', paddingTop: '15px' }} />
-                      <text x="50%" y="46%" textAnchor="middle" dominantBaseline="middle" className="fill-white font-extrabold text-xl">{stats.resolutionRateGlobal}</text>
-                      <text x="50%" y="56%" textAnchor="middle" dominantBaseline="middle" className="fill-slate-400 text-[10px] uppercase font-bold tracking-wider">Resueltos</text>
+                      <text x="50%" y="46%" textAnchor="middle" dominantBaseline="middle" className="fill-white font-extrabold text-xl pointer-events-none">{stats.resolutionRateGlobal}</text>
+                      <text x="50%" y="56%" textAnchor="middle" dominantBaseline="middle" className="fill-slate-400 text-[10px] uppercase font-bold tracking-wider pointer-events-none">Resueltos</text>
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
@@ -539,7 +550,7 @@ export default function App() {
                       <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#334155" />
                       <XAxis type="number" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
                       <YAxis dataKey="name" type="category" width={130} tick={{ fontSize: 11, fill: '#cbd5e1' }} axisLine={false} tickLine={false} />
-                      <Tooltip cursor={{ fill: '#334155', opacity: 0.5 }} contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', color: '#f8fafc' }} itemStyle={{ color: '#f8fafc' }} />
+                      <Tooltip cursor={{ fill: '#334155', opacity: 0.5 }} contentStyle={{ backgroundColor: '#0f172a', borderColor: '#3b82f6', borderRadius: '8px', color: '#ffffff' }} itemStyle={{ color: '#ffffff', fontWeight: 'bold' }} labelStyle={{ color: '#ffffff', fontWeight: 'bold' }} />
                       <Bar dataKey="value" fill="#3b82f6" radius={[0, 6, 6, 0]} barSize={24}>
                         {stats.categories.map((entry, index) => <Cell key={index} fill={`url(#colorGradient${index % 4})`} />)}
                       </Bar>
@@ -638,7 +649,7 @@ export default function App() {
           </div>
         )}
 
-        {/* PESTAÑA 4: IT TICKETS (REBRANDED NATIVO) */}
+        {/* PESTAÑA 4: IT TICKETS */}
         {activeTab === 'tool2' && tool2Data && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="bg-[#1e293b] p-6 rounded-2xl border border-slate-700 shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -661,40 +672,31 @@ export default function App() {
                     <Calendar className="w-3.5 h-3.5 text-blue-400" /> Período
                   </label>
                   <div className="space-y-2">
-                    <div>
-                      <span className="text-[10px] text-slate-400 font-semibold">Fecha Inicio</span>
-                      <input type="date" className="w-full bg-[#0f172a] border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-blue-500 transition-colors" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-slate-400 font-semibold">Fecha Fin</span>
-                      <input type="date" className="w-full bg-[#0f172a] border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-blue-500 transition-colors" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-                    </div>
+                    <CustomDateInput label="Fecha Inicio" value={startDate} onChange={setStartDate} />
+                    <CustomDateInput label="Fecha Fin" value={endDate} onChange={setEndDate} />
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider">Agente Asignado</label>
-                  <select className="w-full bg-[#0f172a] border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-blue-500 cursor-pointer font-medium" value={d2Agent} onChange={(e) => setD2Agent(e.target.value)}>
-                    <option value="Todos">Todos los Agentes</option>
-                    {uniqueUsers.map(user => <option key={user} value={user}>{user}</option>)}
-                  </select>
-                </div>
+                <CustomSelect
+                  label="AGENTE ASIGNADO"
+                  value={d2Agent}
+                  onChange={setD2Agent}
+                  options={[{ value: 'Todos', label: 'Todos los Agentes' }, ...uniqueUsers.map(u => ({ value: u, label: u }))]}
+                />
 
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider">Request Level</label>
-                  <select className="w-full bg-[#0f172a] border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-blue-500 cursor-pointer font-medium" value={d2Level} onChange={(e) => setD2Level(e.target.value)}>
-                    <option value="Todos">Todos los Niveles</option>
-                    {tool2Data.levels.map(lvl => <option key={lvl} value={lvl}>{lvl}</option>)}
-                  </select>
-                </div>
+                <CustomSelect
+                  label="REQUEST LEVEL"
+                  value={d2Level}
+                  onChange={setD2Level}
+                  options={[{ value: 'Todos', label: 'Todos los Niveles' }, ...tool2Data.levels.map(l => ({ value: l, label: l }))]}
+                />
 
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider">Priority</label>
-                  <select className="w-full bg-[#0f172a] border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-blue-500 cursor-pointer font-medium" value={d2Priority} onChange={(e) => setD2Priority(e.target.value)}>
-                    <option value="Todas">Todas las Prioridades</option>
-                    {tool2Data.priorities.map(p => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                </div>
+                <CustomSelect
+                  label="PRIORITY"
+                  value={d2Priority}
+                  onChange={setD2Priority}
+                  options={[{ value: 'Todas', label: 'Todas las Prioridades' }, ...tool2Data.priorities.map(p => ({ value: p, label: p }))]}
+                />
 
                 <button onClick={() => { setD2Agent('Todos'); setD2Level('Todos'); setD2Priority('Todas'); setStartDate(''); setEndDate(''); }} className="w-full text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg transition-colors border border-slate-600 shadow-sm">
                   Restablecer Filtros
@@ -741,14 +743,16 @@ export default function App() {
                     <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-4 flex items-center gap-2">
                       <Clock className="w-4 h-4 text-emerald-400" /> Distribución por Estado
                     </h4>
-                    <div className="h-[250px]">
+                    <div className="h-[250px] relative">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie data={tool2Data.statusPieData} cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={4} dataKey="value" stroke="none">
                             {tool2Data.statusPieData.map((_, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} />)}
                           </Pie>
-                          <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', color: '#f8fafc' }} />
+                          <Tooltip wrapperStyle={{ pointerEvents: 'none' }} contentStyle={{ backgroundColor: '#0f172a', borderColor: '#3b82f6', borderRadius: '8px', color: '#ffffff' }} itemStyle={{ color: '#ffffff', fontWeight: 'bold' }} labelStyle={{ color: '#ffffff', fontWeight: 'bold' }} />
                           <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px', paddingTop: '15px' }} />
+                          <text x="50%" y="46%" textAnchor="middle" dominantBaseline="middle" className="fill-white font-extrabold text-xl pointer-events-none">{tool2Data.total}</text>
+                          <text x="50%" y="56%" textAnchor="middle" dominantBaseline="middle" className="fill-slate-300 text-[10px] uppercase font-bold tracking-wider pointer-events-none">Tickets</text>
                         </PieChart>
                       </ResponsiveContainer>
                     </div>
@@ -764,7 +768,7 @@ export default function App() {
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" />
                           <XAxis dataKey="name" tick={{ fill: '#cbd5e1', fontSize: 11 }} axisLine={false} tickLine={false} />
                           <YAxis tick={{ fill: '#cbd5e1', fontSize: 11 }} axisLine={false} tickLine={false} />
-                          <Tooltip cursor={{ fill: '#334155', opacity: 0.4 }} contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', color: '#f8fafc' }} />
+                          <Tooltip wrapperStyle={{ pointerEvents: 'none' }} cursor={{ fill: '#334155', opacity: 0.4 }} contentStyle={{ backgroundColor: '#0f172a', borderColor: '#3b82f6', borderRadius: '8px', color: '#ffffff' }} itemStyle={{ color: '#ffffff', fontWeight: 'bold' }} labelStyle={{ color: '#ffffff', fontWeight: 'bold' }} />
                           <Bar dataKey="Tickets" fill="#3b82f6" radius={[6, 6, 0, 0]} barSize={32}>
                             {tool2Data.priorityBarData.map((entry, index) => (
                               <Cell key={index} fill={entry.name === 'High' ? '#ef4444' : entry.name === 'Medium' ? '#f59e0b' : entry.name === 'Low' ? '#10b981' : '#3b82f6'} />
@@ -780,6 +784,119 @@ export default function App() {
           </div>
         )}
 
+      </div>
+    </div>
+  );
+}
+
+// 🎨 SELECTOR PERSONALIZADO SIN RECORTES DE TEXTO
+function CustomSelect({
+  label,
+  value,
+  onChange,
+  options,
+  placeholder = 'Seleccionar...'
+}: {
+  label?: string;
+  value: string;
+  onChange: (val: string) => void;
+  options: { value: string; label: string }[];
+  placeholder?: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedLabel = options.find(o => o.value === value)?.label || value || placeholder;
+
+  return (
+    <div className="relative w-full" ref={ref}>
+      {label && <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1.5">{label}</label>}
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full bg-[#0f172a] border border-slate-700 hover:border-slate-500 rounded-lg px-3.5 py-2.5 min-h-[42px] text-xs text-slate-200 flex items-center justify-between transition-colors shadow-sm text-left leading-normal"
+      >
+        <span className="truncate font-semibold text-slate-100 leading-normal block py-0.5">{selectedLabel}</span>
+        <ChevronDown className={`w-3.5 h-3.5 text-slate-400 shrink-0 ml-2 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute top-full left-0 w-full mt-1 bg-[#1e293b] border border-slate-700 rounded-lg shadow-2xl z-50 max-h-48 overflow-y-auto py-1">
+          {options.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => {
+                onChange(opt.value);
+                setIsOpen(false);
+              }}
+              className={`w-full text-left px-3.5 py-2 text-xs transition-colors hover:bg-blue-600/20 hover:text-blue-300 ${
+                value === opt.value ? 'bg-blue-600/30 text-blue-400 font-bold' : 'text-slate-200 font-medium'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// 📅 ENTRADA DE FECHA CON DISPARADOR AL 1er CLIC
+function CustomDateInput({
+  label,
+  value,
+  onChange,
+}: {
+  label?: string;
+  value: string;
+  onChange: (val: string) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleClick = () => {
+    if (inputRef.current) {
+      if ('showPicker' in inputRef.current) {
+        try {
+          (inputRef.current as any).showPicker();
+        } catch (e) {
+          inputRef.current.focus();
+        }
+      } else {
+        inputRef.current.focus();
+      }
+    }
+  };
+
+  return (
+    <div className="w-full">
+      {label && <span className="block text-[10px] text-slate-400 font-semibold mb-1">{label}</span>}
+      <div
+        onClick={handleClick}
+        className="relative w-full bg-[#0f172a] border border-slate-700 hover:border-slate-500 rounded-lg px-3.5 py-2.5 min-h-[42px] flex items-center justify-between text-xs text-slate-200 cursor-pointer transition-colors shadow-sm"
+      >
+        <span className={`font-semibold leading-normal ${value ? 'text-slate-100' : 'text-slate-400'}`}>
+          {value || 'yyyy-mm-dd'}
+        </span>
+        <Calendar className="w-4 h-4 text-slate-400 shrink-0 ml-2" />
+        <input
+          ref={inputRef}
+          type="date"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="absolute inset-0 w-full h-full opacity-0 pointer-events-none"
+        />
       </div>
     </div>
   );
@@ -807,7 +924,7 @@ function KpiCard({ title, value, subtitle, icon, color = 'slate', highlight = fa
       <div className="absolute -right-4 -top-4 w-16 h-16 rounded-full bg-current opacity-[0.04] group-hover:scale-150 transition-transform duration-500"></div>
       <div className="flex items-start justify-between mb-2">
         <span className="text-[10px] font-extrabold text-slate-300 uppercase tracking-widest flex items-center gap-1">{title} {onClick && <Sparkles className="w-3 h-3 opacity-60 text-blue-400" />}</span>
-        <div className="opacity-90">{React.cloneElement(icon as React.ReactElement, { size: 16 })}</div>
+        <div className="opacity-80">{React.cloneElement(icon as React.ReactElement, { size: 16 })}</div>
       </div>
       <div>
         <span className="text-3xl font-black text-white tracking-tight">{value}</span>
