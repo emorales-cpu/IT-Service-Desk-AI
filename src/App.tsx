@@ -103,7 +103,7 @@ function isDateInRange(ticketDateStr: string, startStr: string, endStr: string):
 }
 
 export default function App() {
-  useEffect(() => { document.title = "IT TICKETS & INCENTIVOS"; }, []);
+  useEffect(() => { document.title = "IT & PDE Support Request Dashboard"; }, []);
 
   const [allTickets, setAllTickets] = useState<TicketData[]>([]);
   const [loading, setLoading] = useState(false);
@@ -422,7 +422,7 @@ export default function App() {
           <div className="w-20 h-20 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-6 ring-1 ring-blue-500/30">
             <Upload className="w-8 h-8 text-blue-400" />
           </div>
-          <h1 className="text-3xl font-black text-white mb-4 tracking-tight">IT TICKETS & INCENTIVOS</h1>
+          <h1 className="text-3xl font-black text-white mb-4 tracking-tight">IT & PDE Support Request Dashboard</h1>
           <div className="bg-[#0f172a]/80 p-5 rounded-xl border border-slate-700/80 mb-8 shadow-inner">
             <p className="text-slate-200 text-sm font-medium leading-relaxed">
               Plataforma analítica para evaluación operativa y dictamen de incentivos. Sube uno o varios reportes CSV para comenzar.
