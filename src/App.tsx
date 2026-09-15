@@ -14,40 +14,43 @@ import jsPDF from 'jspdf';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#6366f1'];
 
-// 🚀 ORGANIGRAMA ACTUALIZADO (Sin CRM Manager ni Marianny, Operations -> IT Operations)
 const EQUIPO_IT: Record<string, { dept: string; role: string }> = {
   'Eriksson Morales': { dept: 'Helpdesk', role: 'Support' },
   'Henry Garcia': { dept: 'Helpdesk', role: 'Support' },
+  'Henry García': { dept: 'Helpdesk', role: 'Support' },
   'Jean Nunez': { dept: 'Helpdesk', role: 'Support' },
+  'Jean Nuñez': { dept: 'Helpdesk', role: 'Support' },
   'Joan Perez': { dept: 'Helpdesk', role: 'Support' },
+  'Joan Pérez': { dept: 'Helpdesk', role: 'Support' },
   'Enmanuel Jerez': { dept: 'IT Operations', role: 'Operations' },
   'Firian Martinez': { dept: 'IT Operations', role: 'Operations' },
+  'Firian Martínez': { dept: 'IT Operations', role: 'Operations' },
   'Saul Vanderhorst': { dept: 'IT Operations', role: 'Operations' },
+  'Saúl Vanderhorst': { dept: 'IT Operations', role: 'Operations' },
   'Rodrigo Soriano': { dept: 'Salesforce developer', role: 'Developer' },
   'Jose Manuel Martinez': { dept: 'PDE', role: 'Engineer' },
+  'Jose Martinez': { dept: 'PDE', role: 'Engineer' },
+  'José Martínez': { dept: 'PDE', role: 'Engineer' },
+  'José Manuel Martínez': { dept: 'PDE', role: 'Engineer' },
   'Jose David Sanchez': { dept: 'PDE', role: 'Engineer' },
+  'José David Sánchez': { dept: 'PDE', role: 'Engineer' },
   'Jose Claudio Urena': { dept: 'PDE', role: 'Engineer' },
+  'José Claudio Ureña': { dept: 'PDE', role: 'Engineer' },
   'Yordi Moran': { dept: 'Sin Asignar', role: 'N/A' },
+  'Yordi Morán': { dept: 'Sin Asignar', role: 'N/A' },
   'Joas Diaz Mena': { dept: 'Sin Asignar', role: 'N/A' },
+  'Joas Díaz Mena': { dept: 'Sin Asignar', role: 'N/A' },
   'Unassigned': { dept: 'Sin Asignar', role: 'Cola General' },
   '-': { dept: 'Sin Asignar', role: 'Cola General' }
 };
 
 const OFFICIAL_DEPTS = ['Helpdesk', 'IT Operations', 'Salesforce developer', 'PDE', 'Sin Asignar'];
 
-// 📊 DATOS DE DEMOSTRACIÓN ACTUALIZADOS
 const DEMO_TICKETS = [
-  { 'Ticket Id': 'TK-1001', 'Ticket Owner': 'Joan Perez', 'Sub-departamento': 'Helpdesk', 'Status (Ticket)': 'Closed', 'SLA Violation Type': 'Not Violated', 'Product Name (Ticket)': 'Hardware', 'Request Level': 'Support', 'Priority (Ticket)': 'High', 'Resolution Time in Business Hours': '1h 30m', 'Happiness Rating': '100%', 'Created Time': '2026-09-01 09:00:00' },
-  { 'Ticket Id': 'TK-1002', 'Ticket Owner': 'Joan Perez', 'Sub-departamento': 'Helpdesk', 'Status (Ticket)': 'Resolved', 'SLA Violation Type': 'Not Violated', 'Product Name (Ticket)': 'Impresoras', 'Request Level': 'Support', 'Priority (Ticket)': 'Medium', 'Resolution Time in Business Hours': '45m', 'Happiness Rating': '95%', 'Created Time': '2026-09-02 11:15:00' },
-  { 'Ticket Id': 'TK-1003', 'Ticket Owner': 'Jean Nunez', 'Sub-departamento': 'Helpdesk', 'Status (Ticket)': 'Closed', 'SLA Violation Type': 'Not Violated', 'Product Name (Ticket)': 'Software', 'Request Level': 'Support', 'Priority (Ticket)': 'Low', 'Resolution Time in Business Hours': '2h 10m', 'Happiness Rating': '90%', 'Created Time': '2026-09-03 14:20:00' },
-  { 'Ticket Id': 'TK-1004', 'Ticket Owner': 'Eriksson Morales', 'Sub-departamento': 'Helpdesk', 'Status (Ticket)': 'Open', 'SLA Violation Type': 'Resolution Violation', 'Product Name (Ticket)': 'Redes', 'Request Level': 'Support', 'Priority (Ticket)': 'High', 'Resolution Time in Business Hours': '12h 00m', 'Happiness Rating': '85%', 'Created Time': '2026-09-04 10:05:00' },
-  { 'Ticket Id': 'TK-1005', 'Ticket Owner': 'Henry Garcia', 'Sub-departamento': 'Helpdesk', 'Status (Ticket)': 'Closed', 'SLA Violation Type': 'Not Violated', 'Product Name (Ticket)': 'Correo', 'Request Level': 'Support', 'Priority (Ticket)': 'Medium', 'Resolution Time in Business Hours': '1h 00m', 'Happiness Rating': '100%', 'Created Time': '2026-09-05 16:30:00' },
-  { 'Ticket Id': 'TK-1006', 'Ticket Owner': 'Enmanuel Jerez', 'Sub-departamento': 'IT Operations', 'Status (Ticket)': 'Closed', 'SLA Violation Type': 'Resolution Violation', 'Product Name (Ticket)': 'ITR Hub', 'Request Level': 'Operations', 'Priority (Ticket)': 'High', 'Resolution Time in Business Hours': '8h 00m', 'Happiness Rating': '100%', 'Created Time': '2026-09-06 09:10:00' },
-  { 'Ticket Id': 'TK-1007', 'Ticket Owner': 'Enmanuel Jerez', 'Sub-departamento': 'IT Operations', 'Status (Ticket)': 'Closed', 'SLA Violation Type': 'Not Violated', 'Product Name (Ticket)': 'Salesforce', 'Request Level': 'Operations', 'Priority (Ticket)': 'Medium', 'Resolution Time in Business Hours': '2h 00m', 'Happiness Rating': '98%', 'Created Time': '2026-09-07 13:40:00' },
-  { 'Ticket Id': 'TK-1008', 'Ticket Owner': 'Jose Manuel Martinez', 'Sub-departamento': 'PDE', 'Status (Ticket)': 'In progress', 'SLA Violation Type': 'Not Violated', 'Product Name (Ticket)': 'Zoho Desk', 'Request Level': 'Engineer', 'Priority (Ticket)': 'Low', 'Resolution Time in Business Hours': '3h 15m', 'Happiness Rating': '92%', 'Created Time': '2026-09-08 15:00:00' },
-  { 'Ticket Id': 'TK-1009', 'Ticket Owner': 'Saul Vanderhorst', 'Sub-departamento': 'IT Operations', 'Status (Ticket)': 'Closed', 'SLA Violation Type': 'Not Violated', 'Product Name (Ticket)': 'VPN / Firewall', 'Request Level': 'Operations', 'Priority (Ticket)': 'High', 'Resolution Time in Business Hours': '1h 45m', 'Happiness Rating': '96%', 'Created Time': '2026-09-09 11:00:00' },
-  { 'Ticket Id': 'TK-1010', 'Ticket Owner': 'Firian Martinez', 'Sub-departamento': 'IT Operations', 'Status (Ticket)': 'Closed', 'SLA Violation Type': 'Not Violated', 'Product Name (Ticket)': 'Telefonía IP', 'Request Level': 'Operations', 'Priority (Ticket)': 'Medium', 'Resolution Time in Business Hours': '2h 30m', 'Happiness Rating': '94%', 'Created Time': '2026-09-10 10:30:00' },
-  { 'Ticket Id': 'TK-1011', 'Ticket Owner': 'Rodrigo Soriano', 'Sub-departamento': 'Salesforce developer', 'Status (Ticket)': 'Closed', 'SLA Violation Type': 'Not Violated', 'Product Name (Ticket)': 'Salesforce Core', 'Request Level': 'Developer', 'Priority (Ticket)': 'High', 'Resolution Time in Business Hours': '1h 00m', 'Happiness Rating': '100%', 'Created Time': '2026-09-11 08:45:00' },
+  { 'Ticket Id': 'TK-1001', 'Ticket Owner': 'Joan Perez', 'Sub-departamento': 'Helpdesk', 'Status (Ticket)': 'Closed', 'SLA Violation Type': 'Not Violated', 'Product Name (Ticket)': 'Hardware', 'Request Level': 'Support', 'Priority (Ticket)': 'High', 'Happiness Rating': '100%', 'Created Time': '2026-09-01 09:00:00' },
+  { 'Ticket Id': 'TK-1002', 'Ticket Owner': 'Jose Martinez', 'Sub-departamento': 'PDE', 'Status (Ticket)': 'Open', 'SLA Violation Type': 'Resolution Violation', 'Product Name (Ticket)': 'Salesforce Automation', 'Request Level': 'Engineer', 'Priority (Ticket)': 'Medium', 'Happiness Rating': '95%', 'Created Time': '2026-09-02 11:15:00' },
+  { 'Ticket Id': 'TK-1003', 'Ticket Owner': 'Saul Vanderhorst', 'Sub-departamento': 'IT Operations', 'Status (Ticket)': 'Closed', 'SLA Violation Type': 'Not Violated', 'Product Name (Ticket)': 'VPN / Firewall', 'Request Level': 'Operations', 'Priority (Ticket)': 'High', 'Happiness Rating': '98%', 'Created Time': '2026-09-03 14:20:00' },
+  { 'Ticket Id': 'TK-1004', 'Ticket Owner': 'José Claudio Ureña', 'Sub-departamento': 'PDE', 'Status (Ticket)': 'Closed', 'SLA Violation Type': 'Not Violated', 'Product Name (Ticket)': 'Database Engine', 'Request Level': 'Engineer', 'Priority (Ticket)': 'Medium', 'Happiness Rating': '90%', 'Created Time': '2026-09-04 10:05:00' }
 ];
 
 interface TicketData { [key: string]: string; }
@@ -64,9 +67,7 @@ interface InsightModal {
 }
 
 export default function App() {
-  useEffect(() => {
-    document.title = "IT TICKETS & INCENTIVOS";
-  }, []);
+  useEffect(() => { document.title = "IT TICKETS & INCENTIVOS"; }, []);
 
   const [allTickets, setAllTickets] = useState<TicketData[]>([]);
   const [loading, setLoading] = useState(false);
@@ -92,6 +93,21 @@ export default function App() {
     }
   }, [selectedDept, selectedUser]);
 
+  // BÚSQUEDA EXACTA Y LIMPIA DE COLUMNAS
+  const getVal = (ticket: TicketData, possibleKeys: string[], defaultValue: string = '') => {
+    const ticketKeys = Object.keys(ticket);
+    const clean = (str: string) => str.toLowerCase().replace(/[^a-z0-9]/g, '');
+    for (const pKey of possibleKeys) {
+      const target = clean(pKey);
+      const foundKey = ticketKeys.find((k) => clean(k) === target);
+      if (foundKey && ticket[foundKey] && ticket[foundKey] !== '-' && ticket[foundKey].trim() !== '') {
+        return String(ticket[foundKey]).trim();
+      }
+    }
+    return defaultValue;
+  };
+
+  // DETECTOR INTELIGENTE DE CABECERAS Y DEPURACIÓN DE FILAS BASURA
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -102,19 +118,18 @@ export default function App() {
       skipEmptyLines: true,
       complete: (results) => {
         const rows = results.data as string[][];
-        let headerIndex = -1;
+        const keywords = ['ticket', 'owner', 'status', 'subject', 'priority', 'sla', 'created', 'agente', 'estado', 'id', 'reference', 'product', 'department'];
 
-        for (let i = 0; i < rows.length; i++) {
-          const rowString = rows[i].join(',').toLowerCase();
-          if ((rowString.includes('ticket id') || rowString.includes('ticket_id')) &&
-              (rowString.includes('owner') || rowString.includes('técnico responsable') || rowString.includes('sub-departamento'))) {
-            headerIndex = i; break;
+        let bestScore = -1;
+        let headerIndex = 0;
+
+        for (let i = 0; i < Math.min(rows.length, 25); i++) {
+          const rowStr = rows[i].join(' ').toLowerCase();
+          const score = keywords.reduce((acc, kw) => acc + (rowStr.includes(kw) ? 1 : 0), 0);
+          if (score > bestScore && score >= 2) {
+            bestScore = score;
+            headerIndex = i;
           }
-        }
-
-        if (headerIndex === -1) {
-          alert('Error: No se encontró la cabecera de datos maestros. Asegúrate de subir el reporte correcto.');
-          setLoading(false); return;
         }
 
         const headers = rows[headerIndex].map((h) => h.replace(/["\r\n]/g, '').trim());
@@ -128,7 +143,10 @@ export default function App() {
             });
             return obj;
           })
-          .filter((t) => t['Ticket Id'] || t['Ticket ID'] || t['Ticket Id '] || t['Ticket ID ']);
+          .filter((t) => {
+            const rowStr = Object.values(t).join(' ').toLowerCase();
+            return !rowStr.includes('total records') && !rowStr.includes('report generated') && Object.values(t).some((v) => v.trim() !== '');
+          });
 
         setAllTickets(tickets);
         setLoading(false);
@@ -149,35 +167,13 @@ export default function App() {
       const imgProps = pdf.getImageProperties(imgData);
       const renderHeight = (imgProps.height * pdfWidth) / imgProps.width;
 
-      if (renderHeight <= pdfHeight) {
-        pdf.addImage(imgData, 'PNG', 0, (pdfHeight - renderHeight) / 2, pdfWidth, renderHeight);
-      } else {
-        const renderWidth = (imgProps.width * pdfHeight) / imgProps.height;
-        pdf.addImage(imgData, 'PNG', (pdfWidth - renderWidth) / 2, 0, renderWidth, pdfHeight);
-      }
-      
-      const currentUser = selectedUser !== 'Todos'
-        ? selectedUser
-        : d2Agent !== 'Todos'
-          ? d2Agent
-          : 'Global';
-      const formattedName = currentUser.replace(/\s+/g, '_');
-      pdf.save(`Reporte_Tickets_Abiertos_${formattedName}.pdf`);
+      pdf.addImage(imgData, 'PNG', 0, renderHeight <= pdfHeight ? (pdfHeight - renderHeight) / 2 : 0, pdfWidth, renderHeight <= pdfHeight ? renderHeight : pdfHeight);
+      pdf.save(`Reporte_IT_Tickets_${selectedUser.replace(/\s+/g, '_')}.pdf`);
     } catch (error) {
-      console.error('Error al exportar PDF:', error);
-      alert('Hubo un error al generar el PDF.');
+      alert('Error al generar el PDF.');
     } finally {
       setIsExporting(false);
     }
-  };
-
-  const getVal = (ticket: TicketData, possibleKeys: string[], defaultValue: string) => {
-    const ticketKeys = Object.keys(ticket);
-    for (const pKey of possibleKeys) {
-      const foundKey = ticketKeys.find((k) => k.toLowerCase().replace(/[^a-z0-9]/g, '') === pKey.toLowerCase().replace(/[^a-z0-9]/g, ''));
-      if (foundKey && ticket[foundKey] && ticket[foundKey] !== '-' && ticket[foundKey].trim() !== '') return ticket[foundKey];
-    }
-    return defaultValue;
   };
 
   const getOfficialDept = (rawDeptString: string) => {
@@ -194,16 +190,22 @@ export default function App() {
 
     const usersSet = new Set<string>();
     allTickets.forEach((t) => {
-      const rawOwner = getVal(t, ['Ticket Owner', 'Técnico', 'Agent'], 'Sin Asignar');
+      let rawOwner = getVal(t, ['Ticket Owner', 'Técnico Responsable', 'Técnico', 'Agent', 'Owner', 'Agente'], 'Sin Asignar');
+      if (rawOwner.toLowerCase().includes('total records') || rawOwner.length > 35) {
+        rawOwner = 'Sin Asignar';
+      }
       usersSet.add(rawOwner.trim() === '' ? 'Sin Asignar' : rawOwner);
     });
 
     const uniqueUsersList = Array.from(usersSet).sort();
     const currentTickets = allTickets.filter((t) => {
-      const rawOwner = getVal(t, ['Ticket Owner', 'Técnico', 'Agent'], 'Sin Asignar');
+      let rawOwner = getVal(t, ['Ticket Owner', 'Técnico Responsable', 'Técnico', 'Agent', 'Owner', 'Agente'], 'Sin Asignar');
+      if (rawOwner.toLowerCase().includes('total records') || rawOwner.length > 35) {
+        rawOwner = 'Sin Asignar';
+      }
       const owner = rawOwner.trim() === '' ? 'Sin Asignar' : rawOwner;
       const officialMatch = EQUIPO_IT[owner];
-      let dept = officialMatch ? officialMatch.dept : getOfficialDept(getVal(t, ['Sub-departamento', 'departamento', 'department'], 'Sin Depto'));
+      let dept = officialMatch ? officialMatch.dept : getOfficialDept(getVal(t, ['Sub-departamento', 'departamento', 'department', 'Department Name'], 'Sin Depto'));
       return (selectedUser === 'Todos' || owner === selectedUser) && (selectedDept === 'Todos' || dept === selectedDept);
     });
 
@@ -213,15 +215,31 @@ export default function App() {
     const statusStats: Record<string, { name: string; value: number }> = {};
 
     currentTickets.forEach((t) => {
-      const rawOwner = getVal(t, ['Ticket Owner', 'Técnico', 'Agent'], 'Sin Asignar');
+      let rawOwner = getVal(t, ['Ticket Owner', 'Técnico Responsable', 'Técnico', 'Agent', 'Owner', 'Agente'], 'Sin Asignar');
+      if (rawOwner.toLowerCase().includes('total records') || rawOwner.length > 35) {
+        rawOwner = 'Sin Asignar';
+      }
       const owner = rawOwner.trim() === '' ? 'Sin Asignar' : rawOwner;
       const officialMatch = EQUIPO_IT[owner];
       const dept = officialMatch ? officialMatch.dept : 'Sin Asignar';
       const role = officialMatch ? officialMatch.role : getVal(t, ['Request Level', 'Rol'], 'N/A');
       const status = getVal(t, ['Status (Ticket)', 'Estado', 'Status'], 'Open');
-      const sla = getVal(t, ['SLA Violation Type', 'Violación SLA'], 'Not Violated');
-      const product = getVal(t, ['Product Name (Ticket)', 'Categoría', 'Product Name'], 'Sin Categoría');
+      const sla = getVal(t, ['SLA Violation Type', 'Violación SLA', 'SLA Status'], 'Not Violated');
       
+      // Categorización Inteligente por Asunto / Tema real sin agrupar en "General"
+      let product = getVal(t, ['Product Name (Ticket)', 'Categoría', 'Product Name'], '');
+      if (!product || product === '-') {
+        const subject = getVal(t, ['Subject', 'Asunto'], '');
+        const sLower = subject.toLowerCase();
+        if (sLower.includes('salesforce') || sLower.includes('oppt') || sLower.includes('flow')) product = 'Salesforce';
+        else if (sLower.includes('sms') || sLower.includes('email') || sLower.includes('reminder') || sLower.includes('time zone')) product = 'SMS & Emails';
+        else if (sLower.includes('invoice') || sLower.includes('payment') || sLower.includes('billing')) product = 'Facturación';
+        else if (sLower.includes('vpn') || sLower.includes('firewall') || sLower.includes('redes')) product = 'VPN & Redes';
+        else if (sLower.includes('automation') || sLower.includes('bug')) product = 'Automatización';
+        else if (subject) product = subject.split(' ').slice(0, 3).join(' ');
+        else product = getVal(t, ['Sub-departamento', 'department'], 'Soporte General');
+      }
+
       const rawCsat = getVal(t, ['CSAT', 'Happiness Rating', 'Happiness', 'Satisfaction', 'Satisfacción', 'Rating'], 'N/A');
       let ticketCsat = null;
       if (rawCsat !== 'N/A') {
@@ -280,7 +298,7 @@ export default function App() {
 
     let generatedInsights: InsightModal[] = [];
     if (finalGlobalCompliance >= 85) {
-      generatedInsights.push({ id: 'global-sla', type: 'success', title: 'Cumplimiento SLA por Técnico', text: `Rendimiento Óptimo: El equipo mantiene un SLA global saludable de ${finalGlobalCompliance.toFixed(1)}%.`, chartType: 'bar', data: processedUsers.map((u) => ({ name: u.name.split(' ')[0], SLA: u.finalComplianceWithBonus, Meta: 85 })).slice(0, 8) });
+      generatedInsights.push({ id: 'global-sla', type: 'success', title: 'Cumplimiento SLA por Especialista', text: `Rendimiento Óptimo: El equipo mantiene un SLA global saludable de ${finalGlobalCompliance.toFixed(1)}%.`, chartType: 'bar', data: processedUsers.map((u) => ({ name: u.name.split(' ')[0], SLA: u.finalComplianceWithBonus, Meta: 85 })).slice(0, 8) });
     } else {
       generatedInsights.push({ id: 'global-sla-warn', type: 'warning', title: 'Rendimiento Crítico de SLA', text: `Alerta: El SLA global (${finalGlobalCompliance.toFixed(1)}%) está por debajo de la meta del 85%.`, chartType: 'bar', data: processedUsers.map((u) => ({ name: u.name.split(' ')[0], SLA: u.finalComplianceWithBonus, Meta: 85 })).slice(0, 8) });
     }
@@ -288,10 +306,6 @@ export default function App() {
     const topViolator = processedUsers.slice().sort((a, b) => b.violations - a.violations)[0];
     if (topViolator && topViolator.violations > 0) {
       generatedInsights.push({ id: 'foco-operativo', type: 'danger', title: 'Comparativa de Violaciones SLA', text: `Foco Operativo: ${topViolator.name} registra ${topViolator.violations} violaciones de SLA (Requiere revisión).`, chartType: 'bar', data: processedUsers.filter((u) => u.violations > 0).map((u) => ({ name: u.name.split(' ')[0], Violaciones: u.violations })).sort((a, b) => b.Violaciones - a.Violaciones).slice(0, 5) });
-    }
-
-    if (globalCsatAverage !== null && globalCsatAverage >= 90) {
-      generatedInsights.push({ id: 'csat-insight', type: 'success', title: 'Índice de Felicidad Sobresaliente', text: `¡Excelente trabajo! La satisfacción del cliente es del ${globalCsatAverage.toFixed(1)}%, otorgando un bono global de protección SLA.`, chartType: 'bar', data: processedUsers.filter(u => u.csatScore !== null).map(u => ({ name: u.name.split(' ')[0], CSAT: u.csatScore })) });
     }
 
     return {
@@ -313,10 +327,11 @@ export default function App() {
     });
 
     const filtered = allTickets.filter(t => {
-      const owner = getVal(t, ['Ticket Owner', 'Técnico', 'Agent'], 'Sin Asignar');
+      let owner = getVal(t, ['Ticket Owner', 'Técnico Responsable', 'Técnico', 'Agent', 'Owner', 'Agente'], 'Sin Asignar');
+      if (owner.toLowerCase().includes('total records') || owner.length > 35) owner = 'Sin Asignar';
       const level = getVal(t, ['Request Level', 'Rol', 'Nivel'], 'N/A');
       const priority = getVal(t, ['Priority (Ticket)', 'Prioridad'], 'Normal');
-      const createdDate = getVal(t, ['Created Time', 'Fecha Creación', 'Created Date'], '');
+      const createdDate = getVal(t, ['Created Time (Ticket)', 'Created Time', 'Fecha Creación', 'Created Date'], '');
 
       const matchAgent = d2Agent === 'Todos' || owner === d2Agent;
       const matchLevel = d2Level === 'Todos' || level === d2Level;
@@ -334,7 +349,7 @@ export default function App() {
 
     filtered.forEach(t => {
       const status = getVal(t, ['Status (Ticket)', 'Estado', 'Status'], 'Open');
-      const sla = getVal(t, ['SLA Violation Type', 'Violación SLA'], 'Not Violated');
+      const sla = getVal(t, ['SLA Violation Type', 'Violación SLA', 'SLA Status'], 'Not Violated');
       const priority = getVal(t, ['Priority (Ticket)', 'Prioridad'], '-');
 
       const isClosed = status.toLowerCase().includes('closed') || status.toLowerCase().includes('resolved');
@@ -358,35 +373,26 @@ export default function App() {
 
   const displayedUsers = selectedDept === 'Todos' ? uniqueUsers : uniqueUsers.filter(user => EQUIPO_IT[user]?.dept === selectedDept || (EQUIPO_IT[user] === undefined && selectedDept === 'Sin Asignar'));
 
-  // 🌟 PANTALLA DE BIENVENIDA
   if (allTickets.length === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#0f172a] flex flex-col items-center justify-center p-6 text-slate-100">
         <div className="bg-[#1e293b] p-10 rounded-2xl shadow-2xl text-center max-w-lg w-full border border-slate-700/80 relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-emerald-400"></div>
-          
           <div className="w-20 h-20 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-6 ring-1 ring-blue-500/30">
             <Upload className="w-8 h-8 text-blue-400" />
           </div>
-
           <h1 className="text-3xl font-black text-white mb-4 tracking-tight">IT TICKETS & INCENTIVOS</h1>
-
           <div className="bg-[#0f172a]/80 p-5 rounded-xl border border-slate-700/80 mb-8 shadow-inner">
             <p className="text-slate-200 text-sm font-medium leading-relaxed">
-              Plataforma analítica para evaluación operativa y dictamen de incentivos. Sube el ExportReport para comenzar.
+              Plataforma analítica para evaluación operativa y dictamen de incentivos. Sube tu archivo CSV para comenzar.
             </p>
           </div>
-
           <div className="flex flex-col gap-4 items-center">
             <label className="w-full cursor-pointer bg-blue-600 hover:bg-blue-500 text-white font-bold py-3.5 px-8 rounded-xl transition-all flex items-center justify-center gap-3 text-sm shadow-lg shadow-blue-900/50 hover:scale-[1.02] active:scale-95">
               {loading ? 'Procesando...' : 'Cargar Reporte (CSV)'}
               <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload} disabled={loading} />
             </label>
-
-            <button
-              onClick={() => setAllTickets(DEMO_TICKETS)}
-              className="mt-2 text-xs font-extrabold text-slate-300 hover:text-blue-400 uppercase tracking-widest transition-colors border-b border-dashed border-slate-600 hover:border-blue-400 pb-0.5"
-            >
+            <button onClick={() => setAllTickets(DEMO_TICKETS)} className="mt-2 text-xs font-extrabold text-slate-300 hover:text-blue-400 uppercase tracking-widest transition-colors border-b border-dashed border-slate-600 hover:border-blue-400 pb-0.5">
               VISUALIZAR CON DATOS DE DEMOSTRACIÓN
             </button>
           </div>
@@ -397,34 +403,44 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#0f172a] text-slate-200 font-sans pb-12 flex flex-col items-center relative">
+      {/* MODAL AMPLIADO EN ALTA RESOLUCIÓN */}
       {activeModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="bg-[#1e293b] w-full max-w-3xl rounded-2xl border border-slate-600 shadow-2xl overflow-hidden flex flex-col">
-            <div className="px-6 py-4 border-b border-slate-700 flex items-center justify-between bg-slate-900/80">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-[#1e293b] w-full max-w-4xl rounded-2xl border border-slate-600 shadow-2xl overflow-hidden flex flex-col">
+            <div className="px-6 py-4 border-b border-slate-700 flex items-center justify-between bg-slate-900/90">
               <h2 className="text-base font-bold text-white flex items-center gap-2"><Sparkles className="w-5 h-5 text-blue-400" />{activeModal.title}</h2>
               <button onClick={() => setActiveModal(null)} className="p-1.5 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"><X className="w-5 h-5" /></button>
             </div>
             <div className="p-6">
               {activeModal.text && <p className="text-xs text-slate-200 mb-6 bg-slate-900/80 p-4 rounded-xl border border-slate-700/60 leading-relaxed">{activeModal.text}</p>}
-              <div className="h-[320px] w-full">
+              <div className="h-[400px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   {activeModal.chartType === 'pie' ? (
                     <PieChart>
-                      <Pie data={activeModal.data} cx="50%" cy="50%" innerRadius={70} outerRadius={105} paddingAngle={4} dataKey="value" stroke="none">
+                      <Pie data={activeModal.data} cx="50%" cy="50%" innerRadius={80} outerRadius={130} paddingAngle={4} dataKey="value" stroke="none">
                         {activeModal.data.map((entry, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} />)}
                       </Pie>
-                      <Tooltip wrapperStyle={{ pointerEvents: 'none' }} contentStyle={{ backgroundColor: '#0f172a', borderColor: '#3b82f6', borderRadius: '8px', color: '#ffffff' }} itemStyle={{ color: '#ffffff', fontWeight: 'bold' }} labelStyle={{ color: '#ffffff', fontWeight: 'bold' }} />
+                      <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#3b82f6', borderRadius: '8px', color: '#ffffff' }} />
                       <Legend verticalAlign="bottom" height={36} />
                     </PieChart>
                   ) : (
-                    <BarChart data={activeModal.data} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                    <BarChart data={activeModal.data} layout={activeModal.data.some(d => d.name && d.name.length > 15) ? "vertical" : "horizontal"} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" />
-                      <XAxis dataKey="name" tick={{ fill: '#cbd5e1', fontSize: 11 }} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fill: '#cbd5e1', fontSize: 11 }} axisLine={false} tickLine={false} />
-                      <Tooltip wrapperStyle={{ pointerEvents: 'none' }} cursor={{ fill: '#334155', opacity: 0.4 }} contentStyle={{ backgroundColor: '#0f172a', borderColor: '#3b82f6', borderRadius: '8px', color: '#ffffff' }} itemStyle={{ color: '#ffffff', fontWeight: 'bold' }} labelStyle={{ color: '#ffffff', fontWeight: 'bold' }} />
+                      {activeModal.data.some(d => d.name && d.name.length > 15) ? (
+                        <>
+                          <XAxis type="number" tick={{ fill: '#cbd5e1', fontSize: 11 }} />
+                          <YAxis dataKey="name" type="category" width={180} tick={{ fill: '#cbd5e1', fontSize: 11 }} tickFormatter={(val: string) => val.length > 25 ? val.slice(0, 23) + '...' : val} />
+                        </>
+                      ) : (
+                        <>
+                          <XAxis dataKey="name" tick={{ fill: '#cbd5e1', fontSize: 11 }} />
+                          <YAxis tick={{ fill: '#cbd5e1', fontSize: 11 }} />
+                        </>
+                      )}
+                      <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#3b82f6', borderRadius: '8px', color: '#ffffff' }} />
                       <Legend />
                       {Object.keys(activeModal.data[0] || {}).filter((k) => k !== 'name').map((key, index) => (
-                        <Bar key={key} dataKey={key} fill={index === 0 ? '#3b82f6' : '#10b981'} radius={[4, 4, 0, 0]} barSize={36} />
+                        <Bar key={key} dataKey={key} fill={index === 0 ? '#3b82f6' : '#10b981'} radius={[4, 4, 0, 0]} barSize={32} />
                       ))}
                     </BarChart>
                   )}
@@ -435,7 +451,7 @@ export default function App() {
         </div>
       )}
 
-      {/* BARRA SUPERIOR HEADER */}
+      {/* HEADER */}
       <div className="bg-[#1e293b]/90 backdrop-blur-md border-b border-slate-700/80 sticky top-0 z-40 shadow-lg w-full flex justify-center">
         <div className="w-full max-w-[1400px] px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
@@ -452,18 +468,10 @@ export default function App() {
               <Download className="w-4 h-4" />{isExporting ? 'Generando PDF...' : 'Exportar PDF'}
             </button>
             <div className="w-44">
-              <CustomSelect
-                value={selectedDept}
-                onChange={setSelectedDept}
-                options={[{ value: 'Todos', label: 'Dpto: Todos' }, ...OFFICIAL_DEPTS.map(d => ({ value: d, label: d }))]}
-              />
+              <CustomSelect value={selectedDept} onChange={setSelectedDept} options={[{ value: 'Todos', label: 'Dpto: Todos' }, ...OFFICIAL_DEPTS.map(d => ({ value: d, label: d }))]} />
             </div>
-            <div className="w-48">
-              <CustomSelect
-                value={selectedUser}
-                onChange={setSelectedUser}
-                options={[{ value: 'Todos', label: 'Técnico: Todos' }, ...displayedUsers.map(u => ({ value: u, label: u }))]}
-              />
+            <div className="w-52">
+              <CustomSelect value={selectedUser} onChange={setSelectedUser} options={[{ value: 'Todos', label: 'Especialista: Todos' }, ...displayedUsers.map(u => ({ value: u, label: u }))]} />
             </div>
             <button onClick={() => { setAllTickets([]); setSelectedDept('Todos'); setSelectedUser('Todos'); }} className="text-xs font-bold bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 py-2 px-3 rounded-lg transition-colors border border-rose-500/30">
               Cerrar Reporte
@@ -483,7 +491,7 @@ export default function App() {
           </div>
           <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
             {insights.map((insight) => (
-              <button key={insight.id} onClick={() => setActiveModal(insight)} className={`text-left rounded-xl p-4 border transition-all hover:scale-[1.02] active:scale-95 shadow-sm ${insight.type === 'success' ? 'bg-emerald-950/40 border-emerald-800/60 hover:bg-emerald-900/50 text-emerald-200' : insight.type === 'warning' ? 'bg-amber-950/40 border-amber-800/60 hover:bg-amber-900/50 text-amber-200' : insight.type === 'danger' ? 'bg-rose-950/40 border-rose-800/60 hover:bg-rose-900/50 text-rose-200' : 'bg-[#1e293b] border-slate-700 hover:bg-slate-700/60 text-slate-200'} flex items-start gap-3`}>
+              <button key={insight.id} onClick={() => setActiveModal(insight)} className={`text-left rounded-xl p-4 border transition-all hover:scale-[1.02] shadow-sm ${insight.type === 'success' ? 'bg-emerald-950/40 border-emerald-800/60 text-emerald-200' : insight.type === 'warning' ? 'bg-amber-950/40 border-amber-800/60 text-amber-200' : insight.type === 'danger' ? 'bg-rose-950/40 border-rose-800/60 text-rose-200' : 'bg-[#1e293b] border-slate-700 text-slate-200'} flex items-start gap-3`}>
                 <div className="mt-0.5">
                   {insight.type === 'success' && <CheckCircle className="w-4 h-4 text-emerald-400" />}
                   {insight.type === 'warning' && <AlertTriangle className="w-4 h-4 text-amber-400" />}
@@ -499,7 +507,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* NAVEGACIÓN PESTAÑAS */}
+        {/* PESTAÑAS */}
         <div className="flex space-x-1 bg-[#1e293b] p-1.5 rounded-xl border border-slate-700 shadow-md w-fit" data-html2canvas-ignore="true">
           <TabButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<BarChart3 />} text="Resumen Ejecutivo" />
           <TabButton active={activeTab === 'team'} onClick={() => setActiveTab('team')} icon={<Award />} text="Desempeño del Equipo" />
@@ -508,9 +516,9 @@ export default function App() {
         </div>
 
         {activeTab === 'dashboard' && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="space-y-6">
             <div className={`grid grid-cols-2 ${hasCsatData ? 'lg:grid-cols-7' : 'lg:grid-cols-6'} gap-4`}>
-              <KpiCard title="TOTAL TICKETS" value={stats.total} subtitle="Volumen procesado" icon={<Ticket />} color="slate" onClick={() => setActiveModal({ id: 'modal-total', type: 'chart', title: 'Distribución de Volumen por Técnico', chartType: 'bar', data: stats.users.slice(0, 8).map((u) => ({ name: u.name.split(' ')[0], Tickets: u.total })) })} />
+              <KpiCard title="TOTAL TICKETS" value={stats.total} subtitle="Volumen procesado" icon={<Ticket />} color="slate" onClick={() => setActiveModal({ id: 'modal-total', type: 'chart', title: 'Distribución de Volumen por Especialista', chartType: 'bar', data: stats.users.slice(0, 8).map((u) => ({ name: u.name.split(' ')[0], Tickets: u.total })) })} />
               <KpiCard title="% RESOLUCIÓN" value={stats.resolutionRateGlobal} subtitle="Tasa de Cierre" icon={<CheckCircle />} color="blue" onClick={() => setActiveModal({ id: 'modal-status-pie', type: 'chart', title: 'Porcentaje y Estatus de Cierre', chartType: 'pie', data: stats.status })} />
               <KpiCard title="DENTRO DE SLA" value={stats.total - stats.slaViolations} subtitle="A tiempo" icon={<TrendingUp />} color="emerald" />
               <KpiCard title="VIOLACIONES SLA" value={stats.slaViolations} subtitle="Incumplimientos" icon={<AlertTriangle />} color={stats.slaViolations > 0 ? 'rose' : 'emerald'} onClick={() => setActiveModal({ id: 'modal-violaciones', type: 'chart', title: 'Violaciones de SLA por Integrante', chartType: 'bar', data: stats.users.filter((u) => u.violations > 0).map((u) => ({ name: u.name.split(' ')[0], Violaciones: u.violations })) })} />
@@ -521,68 +529,82 @@ export default function App() {
 
               <KpiCard title="% CUMPLIMIENTO SLA" value={`${stats.complianceRateGlobalNum.toFixed(1)}%`} subtitle="SLA Operativo" icon={<Layers />} color={stats.complianceRateGlobalNum >= 85 ? 'emerald' : 'amber'} highlight />
 
-              <div className={`p-4 rounded-2xl border flex flex-col justify-center items-center text-center relative overflow-hidden ${stats.isApprovedGlobal ? 'bg-gradient-to-br from-emerald-900/50 to-slate-900 border-emerald-500/40 shadow-[0_0_15px_rgba(16,185,129,0.15)]' : 'bg-gradient-to-br from-amber-900/50 to-slate-900 border-amber-500/40'}`}>
+              <div className={`p-4 rounded-2xl border flex flex-col justify-center items-center text-center relative overflow-hidden ${stats.isApprovedGlobal ? 'bg-gradient-to-br from-emerald-900/50 to-slate-900 border-emerald-500/40' : 'bg-gradient-to-br from-amber-900/50 to-slate-900 border-amber-500/40'}`}>
                 <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mb-2 z-10">Dictamen Final</p>
                 <p className={`text-2xl font-extrabold z-10 ${stats.isApprovedGlobal ? 'text-emerald-400' : 'text-amber-400'}`}>{stats.isApprovedGlobal ? 'APROBADO' : 'REVISIÓN'}</p>
                 <p className="text-[9px] text-slate-400 mt-1 z-10 font-semibold">Meta ≥ 85.0%</p>
-                {hasCsatData && stats.finalGlobalCompliance > stats.complianceRateGlobalNum && <p className="text-[10px] text-emerald-400 font-bold mt-1 z-10 animate-pulse">+ Bono CSAT Incluido</p>}
               </div>
             </div>
 
+            {/* GRÁFICOS PRINCIPALES */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div onClick={() => setActiveModal({ id: 'modal-status', type: 'chart', title: 'Desglose Detallado de Estatus', chartType: 'pie', data: stats.status })} className="bg-[#1e293b] p-6 rounded-2xl border border-slate-700 shadow-md cursor-pointer hover:border-slate-500 transition-all group relative">
-                <div className="flex items-center justify-between mb-4"><h3 className="text-xs font-bold text-white uppercase tracking-wider">Distribución de Estatus</h3><Maximize2 className="w-4 h-4 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" /></div>
-                <div className="h-[250px] relative">
+              
+              {/* DISTRIBUCIÓN POR ESTADO */}
+              <div 
+                onClick={() => setActiveModal({ id: 'modal-status', type: 'chart', title: 'Desglose Detallado de Estatus', chartType: 'pie', data: stats.status })} 
+                className="bg-[#1e293b] p-6 rounded-2xl border border-slate-700 shadow-md cursor-pointer hover:border-blue-500/50 transition-all group relative flex flex-col justify-between"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-xs font-bold text-white uppercase tracking-wider">Distribución de Estatus</h3>
+                  <Maximize2 className="w-4 h-4 text-slate-400 group-hover:text-blue-400 transition-colors" />
+                </div>
+                <div className="h-[290px] relative">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                      <Pie data={stats.status} cx="50%" cy="50%" innerRadius={65} outerRadius={90} paddingAngle={4} dataKey="value" stroke="none">
+                      <Pie data={stats.status} cx="50%" cy="50%" innerRadius={70} outerRadius={100} paddingAngle={4} dataKey="value" stroke="none">
                         {stats.status.map((entry, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} />)}
                       </Pie>
-                      <Tooltip wrapperStyle={{ pointerEvents: 'none' }} contentStyle={{ backgroundColor: '#0f172a', borderColor: '#3b82f6', borderRadius: '8px', color: '#ffffff' }} itemStyle={{ color: '#ffffff', fontWeight: 'bold' }} labelStyle={{ color: '#ffffff', fontWeight: 'bold' }} />
-                      <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px', paddingTop: '15px' }} />
-                      <text x="50%" y="46%" textAnchor="middle" dominantBaseline="middle" className="fill-white font-extrabold text-xl pointer-events-none">{stats.resolutionRateGlobal}</text>
-                      <text x="50%" y="56%" textAnchor="middle" dominantBaseline="middle" className="fill-slate-400 text-[10px] uppercase font-bold tracking-wider pointer-events-none">Resueltos</text>
+                      <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#3b82f6', borderRadius: '8px', color: '#ffffff' }} />
+                      <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
               </div>
 
-              <div onClick={() => setActiveModal({ id: 'modal-categories', type: 'chart', title: 'Top Categorías Operativas Ampliado', chartType: 'bar', data: stats.categories.map((c) => ({ name: c.name, Tickets: c.value })) })} className="bg-[#1e293b] p-6 rounded-2xl border border-slate-700 shadow-md col-span-1 lg:col-span-2 cursor-pointer hover:border-slate-500 transition-all group relative">
-                <div className="flex items-center justify-between mb-4"><h3 className="text-xs font-bold text-white uppercase tracking-wider">Top Categorías Operativas</h3><Maximize2 className="w-4 h-4 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" /></div>
-                <div className="h-[250px]">
+              {/* TOP CATEGORÍAS OPERATIVAS */}
+              <div 
+                onClick={() => setActiveModal({ id: 'modal-categories', type: 'chart', title: 'Top Categorías Operativas Ampliado', chartType: 'bar', data: stats.categories.map((c) => ({ name: c.name, Tickets: c.value })) })} 
+                className="bg-[#1e293b] p-6 rounded-2xl border border-slate-700 shadow-md col-span-1 lg:col-span-2 cursor-pointer hover:border-blue-500/50 transition-all group relative flex flex-col justify-between"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-xs font-bold text-white uppercase tracking-wider">Top Categorías Operativas</h3>
+                  <Maximize2 className="w-4 h-4 text-slate-400 group-hover:text-blue-400 transition-colors" />
+                </div>
+                <div className="h-[290px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={stats.categories} layout="vertical" margin={{ top: 0, right: 30, left: 20, bottom: 0 }}>
+                    <BarChart data={stats.categories} layout="vertical" margin={{ top: 0, right: 30, left: 10, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#334155" />
                       <XAxis type="number" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                      <YAxis dataKey="name" type="category" width={130} tick={{ fontSize: 11, fill: '#cbd5e1' }} axisLine={false} tickLine={false} />
-                      <Tooltip cursor={{ fill: '#334155', opacity: 0.5 }} contentStyle={{ backgroundColor: '#0f172a', borderColor: '#3b82f6', borderRadius: '8px', color: '#ffffff' }} itemStyle={{ color: '#ffffff', fontWeight: 'bold' }} labelStyle={{ color: '#ffffff', fontWeight: 'bold' }} />
-                      <Bar dataKey="value" fill="#3b82f6" radius={[0, 6, 6, 0]} barSize={24}>
-                        {stats.categories.map((entry, index) => <Cell key={index} fill={`url(#colorGradient${index % 4})`} />)}
-                      </Bar>
-                      <defs>
-                        <linearGradient id="colorGradient0" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stopColor="#3b82f6" /><stop offset="100%" stopColor="#60a5fa" /></linearGradient>
-                        <linearGradient id="colorGradient1" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stopColor="#8b5cf6" /><stop offset="100%" stopColor="#a78bfa" /></linearGradient>
-                        <linearGradient id="colorGradient2" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stopColor="#0ea5e9" /><stop offset="100%" stopColor="#38bdf8" /></linearGradient>
-                        <linearGradient id="colorGradient3" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stopColor="#10b981" /><stop offset="100%" stopColor="#34d399" /></linearGradient>
-                      </defs>
+                      <YAxis 
+                        dataKey="name" 
+                        type="category" 
+                        width={140} 
+                        tick={{ fontSize: 11, fill: '#cbd5e1' }} 
+                        tickFormatter={(val: string) => val.length > 22 ? val.slice(0, 20) + '...' : val}
+                        axisLine={false} 
+                        tickLine={false} 
+                      />
+                      <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#3b82f6', borderRadius: '8px', color: '#ffffff' }} />
+                      <Bar dataKey="value" fill="#3b82f6" radius={[0, 6, 6, 0]} barSize={22} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
               </div>
+
             </div>
           </div>
         )}
 
         {activeTab === 'team' && (
-          <div className="bg-[#1e293b] rounded-2xl border border-slate-700 shadow-xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="bg-[#1e293b] rounded-2xl border border-slate-700 shadow-xl overflow-hidden">
             <div className="px-6 py-5 bg-[#0f172a] border-b border-slate-700 flex items-center justify-between">
-              <h3 className="text-base font-bold text-white uppercase tracking-wider flex items-center gap-2"><Award className="w-5 h-5 text-purple-400" /> Rendimiento y Bonos por Técnico</h3>
+              <h3 className="text-base font-bold text-white uppercase tracking-wider flex items-center gap-2"><Award className="w-5 h-5 text-purple-400" /> Rendimiento y Bonos por Especialista</h3>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-sm">
                 <thead>
                   <tr className="bg-slate-900/60 text-slate-300">
-                    <th className="px-6 py-4 font-bold uppercase text-[10px] tracking-widest">Técnico</th>
+                    <th className="px-6 py-4 font-bold uppercase text-[10px] tracking-widest">Especialista</th>
                     <th className="px-6 py-4 font-bold uppercase text-[10px] tracking-widest">Dpto / Rol</th>
                     <th className="px-6 py-4 font-bold uppercase text-[10px] tracking-widest text-center">Asignados</th>
                     <th className="px-6 py-4 font-bold uppercase text-[10px] tracking-widest text-center">Resueltos</th>
@@ -595,17 +617,16 @@ export default function App() {
                 <tbody className="divide-y divide-slate-700/60">
                   {stats.users.map((user: UserStat, idx: number) => {
                     const isApproved = user.finalComplianceWithBonus >= 85;
-                    const hasCsatBonus = isApproved && user.numericSlaCompliance < 85;
                     return (
-                      <tr key={idx} className="hover:bg-slate-700/40 transition-colors group">
+                      <tr key={idx} className="hover:bg-slate-700/40 transition-colors">
                         <td className="px-6 py-4"><div className="flex items-center gap-3"><div className="w-8 h-8 rounded-full bg-slate-800 border border-slate-600 flex items-center justify-center text-xs font-extrabold text-slate-200">{user.name.charAt(0)}</div><span className="font-semibold text-slate-100">{user.name}</span></div></td>
                         <td className="px-6 py-4"><div className="text-xs font-medium text-slate-200">{user.dept}</div><div className="text-[10px] text-slate-400">{user.role}</div></td>
                         <td className="px-6 py-4 text-center font-bold text-slate-200">{user.total}</td>
                         <td className="px-6 py-4 text-center text-slate-300 font-medium">{user.closed}</td>
                         <td className="px-6 py-4 text-center">{user.violations > 0 ? <span className="inline-flex px-2 py-0.5 rounded text-xs font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">{user.violations}</span> : <span className="text-slate-500">-</span>}</td>
-                        {hasCsatData && <td className="px-6 py-4 text-center font-mono text-slate-200">{user.csatScore !== null ? <span className={user.csatScore >= 90 ? 'text-emerald-400 font-bold' : ''}>{user.csatScore.toFixed(1)}%</span> : <span className="text-slate-500">-</span>}</td>}
-                        <td className="px-6 py-4 text-center"><div className="flex flex-col items-center gap-1"><span className={`font-bold font-mono ${isApproved ? 'text-emerald-400' : 'text-amber-400'}`}>{user.finalComplianceWithBonus.toFixed(1)}%</span><div className="w-16 h-1.5 bg-slate-900 rounded-full overflow-hidden relative"><div className={`h-full absolute left-0 ${isApproved ? 'bg-emerald-500' : 'bg-amber-500'}`} style={{ width: `${user.numericSlaCompliance}%` }}></div>{hasCsatBonus && <div className="h-full absolute bg-blue-400" style={{ left: `${user.numericSlaCompliance}%`, width: `${user.finalComplianceWithBonus - user.numericSlaCompliance}%` }}></div>}</div></div></td>
-                        <td className="px-6 py-4 text-center"><span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border ${isApproved ? (hasCsatBonus ? 'bg-blue-500/20 text-blue-300 border-blue-500/40' : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-sm') : 'bg-amber-500/20 text-amber-300 border-amber-500/40'}`}>{user.incentiveStatus}</span></td>
+                        {hasCsatData && <td className="px-6 py-4 text-center font-mono text-slate-200">{user.csatScore !== null ? `${user.csatScore.toFixed(1)}%` : '-'}</td>}
+                        <td className="px-6 py-4 text-center"><span className={`font-bold font-mono ${isApproved ? 'text-emerald-400' : 'text-amber-400'}`}>{user.finalComplianceWithBonus.toFixed(1)}%</span></td>
+                        <td className="px-6 py-4 text-center"><span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border ${isApproved ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' : 'bg-amber-500/20 text-amber-300 border-amber-500/40'}`}>{user.incentiveStatus}</span></td>
                       </tr>
                     );
                   })}
@@ -616,34 +637,32 @@ export default function App() {
         )}
 
         {activeTab === 'raw' && (
-          <div className="bg-[#1e293b] rounded-2xl border border-slate-700 shadow-xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 mb-10">
+          <div className="bg-[#1e293b] rounded-2xl border border-slate-700 shadow-xl overflow-hidden mb-10">
             <div className="px-6 py-5 bg-[#0f172a] border-b border-slate-700 flex items-center justify-between"><h3 className="text-base font-bold text-white uppercase tracking-wider flex items-center gap-2"><List className="w-5 h-5 text-blue-400" /> Auditoría de Tickets ({filteredTickets.length})</h3></div>
             <div className="overflow-x-auto max-h-[600px]">
               <table className="w-full text-left border-collapse text-[12px] whitespace-nowrap">
                 <thead className="sticky top-0 bg-[#0f172a] text-slate-200 shadow-sm z-10">
                   <tr>
-                    <th className="px-5 py-3 font-bold uppercase text-[10px]">ID</th>
-                    <th className="px-5 py-3 font-bold uppercase text-[10px]">Owner</th>
+                    <th className="px-5 py-3 font-bold uppercase text-[10px]">Ticket ID</th>
+                    <th className="px-5 py-3 font-bold uppercase text-[10px]">Especialista</th>
                     <th className="px-5 py-3 font-bold uppercase text-[10px]">Categoría</th>
-                    {hasCsatData && <th className="px-5 py-3 font-bold uppercase text-[10px]">CSAT</th>}
-                    <th className="px-5 py-3 font-bold uppercase text-[10px]">Prioridad</th>
                     <th className="px-5 py-3 font-bold uppercase text-[10px]">Estatus</th>
                     <th className="px-5 py-3 font-bold uppercase text-[10px]">SLA Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-700/60">
                   {filteredTickets.map((t, idx) => {
-                    const isViolation = getVal(t, ['SLA Violation Type', 'Tipo Violación SLA'], '').toLowerCase().includes('violation');
-                    const priority = getVal(t, ['Priority (Ticket)', 'Prioridad'], '-');
-                    const csat = getVal(t, ['CSAT', 'Happiness Rating', 'Happiness', 'Satisfaction', 'Satisfacción', 'Rating'], 'N/A');
+                    const isViolation = getVal(t, ['SLA Violation Type', 'Tipo Violación SLA', 'SLA Status'], '').toLowerCase().includes('violation');
+                    const ticketIdVal = getVal(t, ['Ticket Id', 'Ticket ID', 'Ticket Reference Id', 'Reference Id', 'Id'], '-');
+                    let ownerVal = getVal(t, ['Ticket Owner', 'Técnico Responsable', 'Técnico', 'Agent', 'Owner', 'Agente'], '-');
+                    if (ownerVal.toLowerCase().includes('total records') || ownerVal.length > 35) ownerVal = 'Sin Asignar';
+
                     return (
                       <tr key={idx} className={`hover:bg-slate-700/40 transition-colors ${isViolation ? 'bg-rose-950/20' : ''}`}>
-                        <td className="px-5 py-2.5 font-mono font-bold text-blue-400">{getVal(t, ['Ticket Id', 'Ticket ID'], '-')}</td>
-                        <td className="px-5 py-2.5 text-slate-100 font-medium">{getVal(t, ['Ticket Owner', 'Técnico'], '-')}</td>
-                        <td className="px-5 py-2.5 text-slate-300 truncate max-w-[150px]">{getVal(t, ['Product Name (Ticket)', 'Categoría'], '-')}</td>
-                        {hasCsatData && <td className="px-5 py-2.5 text-slate-300">{csat}</td>}
-                        <td className="px-5 py-2.5"><span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold ${priority.toLowerCase().includes('high') ? 'bg-rose-500/25 text-rose-300' : 'bg-slate-800 text-slate-300'}`}>{priority}</span></td>
-                        <td className="px-5 py-2.5 text-slate-300 font-medium">{getVal(t, ['Status (Ticket)', 'Estado'], '-')}</td>
+                        <td className="px-5 py-2.5 font-mono font-bold text-blue-400">{ticketIdVal}</td>
+                        <td className="px-5 py-2.5 text-slate-100 font-medium">{ownerVal}</td>
+                        <td className="px-5 py-2.5 text-slate-300 truncate max-w-[180px]">{getVal(t, ['Product Name (Ticket)', 'Categoría', 'Product Name'], 'General')}</td>
+                        <td className="px-5 py-2.5 text-slate-300 font-medium">{getVal(t, ['Status (Ticket)', 'Estado', 'Status'], '-')}</td>
                         <td className="px-5 py-2.5">{isViolation ? <span className="text-rose-400 font-bold flex items-center gap-1"><AlertOctagon className="w-3 h-3"/> Violación</span> : <span className="text-emerald-400 font-semibold flex items-center gap-1"><CheckCircle className="w-3 h-3"/> OK</span>}</td>
                       </tr>
                     );
@@ -656,7 +675,7 @@ export default function App() {
 
         {/* PESTAÑA 4: IT TICKETS */}
         {activeTab === 'tool2' && tool2Data && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="space-y-6">
             <div className="bg-[#1e293b] p-6 rounded-2xl border border-slate-700 shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
                 <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
@@ -682,26 +701,9 @@ export default function App() {
                   </div>
                 </div>
 
-                <CustomSelect
-                  label="AGENTE ASIGNADO"
-                  value={d2Agent}
-                  onChange={setD2Agent}
-                  options={[{ value: 'Todos', label: 'Todos los Agentes' }, ...uniqueUsers.map(u => ({ value: u, label: u }))]}
-                />
-
-                <CustomSelect
-                  label="REQUEST LEVEL"
-                  value={d2Level}
-                  onChange={setD2Level}
-                  options={[{ value: 'Todos', label: 'Todos los Niveles' }, ...tool2Data.levels.map(l => ({ value: l, label: l }))]}
-                />
-
-                <CustomSelect
-                  label="PRIORITY"
-                  value={d2Priority}
-                  onChange={setD2Priority}
-                  options={[{ value: 'Todas', label: 'Todas las Prioridades' }, ...tool2Data.priorities.map(p => ({ value: p, label: p }))]}
-                />
+                <CustomSelect label="AGENTE ASIGNADO" value={d2Agent} onChange={setD2Agent} options={[{ value: 'Todos', label: 'Todos los Agentes' }, ...uniqueUsers.map(u => ({ value: u, label: u }))]} />
+                <CustomSelect label="REQUEST LEVEL" value={d2Level} onChange={setD2Level} options={[{ value: 'Todos', label: 'Todos los Niveles' }, ...tool2Data.levels.map(l => ({ value: l, label: l }))]} />
+                <CustomSelect label="PRIORITY" value={d2Priority} onChange={setD2Priority} options={[{ value: 'Todas', label: 'Todas las Prioridades' }, ...tool2Data.priorities.map(p => ({ value: p, label: p }))]} />
 
                 <button onClick={() => { setD2Agent('Todos'); setD2Level('Todos'); setD2Priority('Todas'); setStartDate(''); setEndDate(''); }} className="w-full text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg transition-colors border border-slate-600 shadow-sm">
                   Restablecer Filtros
@@ -711,34 +713,19 @@ export default function App() {
               <div className="lg:col-span-3 space-y-6">
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="bg-[#1e293b] p-4 rounded-2xl border border-slate-700 shadow-md flex flex-col justify-between">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tickets Totales</span>
-                      <div className="w-7 h-7 rounded-lg bg-blue-500/15 flex items-center justify-center text-blue-400"><Layers size={14}/></div>
-                    </div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Tickets Totales</span>
                     <span className="text-3xl font-extrabold text-white">{tool2Data.total}</span>
                   </div>
-
                   <div className="bg-[#1e293b] p-4 rounded-2xl border border-slate-700 shadow-md flex flex-col justify-between">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tickets Abiertos</span>
-                      <div className="w-7 h-7 rounded-lg bg-amber-500/15 flex items-center justify-center text-amber-400"><Clock size={14}/></div>
-                    </div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Tickets Abiertos</span>
                     <span className="text-3xl font-extrabold text-white">{tool2Data.openCount}</span>
                   </div>
-
                   <div className="bg-[#1e293b] p-4 rounded-2xl border border-slate-700 shadow-md flex flex-col justify-between">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tickets Cerrados</span>
-                      <div className="w-7 h-7 rounded-lg bg-emerald-500/15 flex items-center justify-center text-emerald-400"><CheckCircle size={14}/></div>
-                    </div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Tickets Cerrados</span>
                     <span className="text-3xl font-extrabold text-white">{tool2Data.closedCount}</span>
                   </div>
-
                   <div className="bg-[#1e293b] p-4 rounded-2xl border border-slate-700 shadow-md flex flex-col justify-between">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">SLA Violados</span>
-                      <div className="w-7 h-7 rounded-lg bg-rose-500/15 flex items-center justify-center text-rose-400"><AlertTriangle size={14}/></div>
-                    </div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">SLA Violados</span>
                     <span className="text-3xl font-extrabold text-white">{tool2Data.slaViolatedCount}</span>
                   </div>
                 </div>
@@ -748,16 +735,14 @@ export default function App() {
                     <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-4 flex items-center gap-2">
                       <Clock className="w-4 h-4 text-emerald-400" /> Distribución por Estado
                     </h4>
-                    <div className="h-[250px] relative">
+                    <div className="h-[250px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie data={tool2Data.statusPieData} cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={4} dataKey="value" stroke="none">
                             {tool2Data.statusPieData.map((_, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} />)}
                           </Pie>
-                          <Tooltip wrapperStyle={{ pointerEvents: 'none' }} contentStyle={{ backgroundColor: '#0f172a', borderColor: '#3b82f6', borderRadius: '8px', color: '#ffffff' }} itemStyle={{ color: '#ffffff', fontWeight: 'bold' }} labelStyle={{ color: '#ffffff', fontWeight: 'bold' }} />
-                          <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px', paddingTop: '15px' }} />
-                          <text x="50%" y="46%" textAnchor="middle" dominantBaseline="middle" className="fill-white font-extrabold text-xl pointer-events-none">{tool2Data.total}</text>
-                          <text x="50%" y="56%" textAnchor="middle" dominantBaseline="middle" className="fill-slate-300 text-[10px] uppercase font-bold tracking-wider pointer-events-none">Tickets</text>
+                          <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#3b82f6', borderRadius: '8px', color: '#ffffff' }} />
+                          <Legend verticalAlign="bottom" height={36} />
                         </PieChart>
                       </ResponsiveContainer>
                     </div>
@@ -773,7 +758,7 @@ export default function App() {
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" />
                           <XAxis dataKey="name" tick={{ fill: '#cbd5e1', fontSize: 11 }} axisLine={false} tickLine={false} />
                           <YAxis tick={{ fill: '#cbd5e1', fontSize: 11 }} axisLine={false} tickLine={false} />
-                          <Tooltip wrapperStyle={{ pointerEvents: 'none' }} cursor={{ fill: '#334155', opacity: 0.4 }} contentStyle={{ backgroundColor: '#0f172a', borderColor: '#3b82f6', borderRadius: '8px', color: '#ffffff' }} itemStyle={{ color: '#ffffff', fontWeight: 'bold' }} labelStyle={{ color: '#ffffff', fontWeight: 'bold' }} />
+                          <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#3b82f6', borderRadius: '8px', color: '#ffffff' }} />
                           <Bar dataKey="Tickets" fill="#3b82f6" radius={[6, 6, 0, 0]} barSize={32}>
                             {tool2Data.priorityBarData.map((entry, index) => (
                               <Cell key={index} fill={entry.name === 'High' ? '#ef4444' : entry.name === 'Medium' ? '#f59e0b' : entry.name === 'Low' ? '#10b981' : '#3b82f6'} />
@@ -794,29 +779,12 @@ export default function App() {
   );
 }
 
-// 🎨 SELECTOR PERSONALIZADO SIN RECORTES DE TEXTO
-function CustomSelect({
-  label,
-  value,
-  onChange,
-  options,
-  placeholder = 'Seleccionar...'
-}: {
-  label?: string;
-  value: string;
-  onChange: (val: string) => void;
-  options: { value: string; label: string }[];
-  placeholder?: string;
-}) {
+function CustomSelect({ label, value, onChange, options, placeholder = 'Seleccionar...' }: { label?: string; value: string; onChange: (val: string) => void; options: { value: string; label: string }[]; placeholder?: string; }) {
   const [isOpen, setIsOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    };
+    const handleClickOutside = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setIsOpen(false); };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
@@ -826,29 +794,14 @@ function CustomSelect({
   return (
     <div className="relative w-full" ref={ref}>
       {label && <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1.5">{label}</label>}
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full bg-[#0f172a] border border-slate-700 hover:border-slate-500 rounded-lg px-3.5 py-2.5 min-h-[42px] text-xs text-slate-200 flex items-center justify-between transition-colors shadow-sm text-left leading-normal"
-      >
-        <span className="truncate font-semibold text-slate-100 leading-normal block py-0.5">{selectedLabel}</span>
+      <button type="button" onClick={() => setIsOpen(!isOpen)} className="w-full bg-[#0f172a] border border-slate-700 hover:border-slate-500 rounded-lg px-3.5 py-2.5 min-h-[42px] text-xs text-slate-200 flex items-center justify-between transition-colors shadow-sm text-left">
+        <span className="truncate font-semibold text-slate-100 block py-0.5">{selectedLabel}</span>
         <ChevronDown className={`w-3.5 h-3.5 text-slate-400 shrink-0 ml-2 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
-
       {isOpen && (
         <div className="absolute top-full left-0 w-full mt-1 bg-[#1e293b] border border-slate-700 rounded-lg shadow-2xl z-50 max-h-48 overflow-y-auto py-1">
           {options.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => {
-                onChange(opt.value);
-                setIsOpen(false);
-              }}
-              className={`w-full text-left px-3.5 py-2 text-xs transition-colors hover:bg-blue-600/20 hover:text-blue-300 ${
-                value === opt.value ? 'bg-blue-600/30 text-blue-400 font-bold' : 'text-slate-200 font-medium'
-              }`}
-            >
+            <button key={opt.value} type="button" onClick={() => { onChange(opt.value); setIsOpen(false); }} className={`w-full text-left px-3.5 py-2 text-xs transition-colors hover:bg-blue-600/20 hover:text-blue-300 ${value === opt.value ? 'bg-blue-600/30 text-blue-400 font-bold' : 'text-slate-200 font-medium'}`}>
               {opt.label}
             </button>
           ))}
@@ -858,50 +811,17 @@ function CustomSelect({
   );
 }
 
-// 📅 ENTRADA DE FECHA CON DISPARADOR AL 1er CLIC
-function CustomDateInput({
-  label,
-  value,
-  onChange,
-}: {
-  label?: string;
-  value: string;
-  onChange: (val: string) => void;
-}) {
+function CustomDateInput({ label, value, onChange }: { label?: string; value: string; onChange: (val: string) => void; }) {
   const inputRef = useRef<HTMLInputElement>(null);
-
-  const handleClick = () => {
-    if (inputRef.current) {
-      if ('showPicker' in inputRef.current) {
-        try {
-          (inputRef.current as any).showPicker();
-        } catch (e) {
-          inputRef.current.focus();
-        }
-      } else {
-        inputRef.current.focus();
-      }
-    }
-  };
+  const handleClick = () => { if (inputRef.current) { if ('showPicker' in inputRef.current) { try { (inputRef.current as any).showPicker(); } catch (e) { inputRef.current.focus(); } } else { inputRef.current.focus(); } } };
 
   return (
     <div className="w-full">
       {label && <span className="block text-[10px] text-slate-400 font-semibold mb-1">{label}</span>}
-      <div
-        onClick={handleClick}
-        className="relative w-full bg-[#0f172a] border border-slate-700 hover:border-slate-500 rounded-lg px-3.5 py-2.5 min-h-[42px] flex items-center justify-between text-xs text-slate-200 cursor-pointer transition-colors shadow-sm"
-      >
-        <span className={`font-semibold leading-normal ${value ? 'text-slate-100' : 'text-slate-400'}`}>
-          {value || 'yyyy-mm-dd'}
-        </span>
+      <div onClick={handleClick} className="relative w-full bg-[#0f172a] border border-slate-700 hover:border-slate-500 rounded-lg px-3.5 py-2.5 min-h-[42px] flex items-center justify-between text-xs text-slate-200 cursor-pointer transition-colors shadow-sm">
+        <span className={`font-semibold ${value ? 'text-slate-100' : 'text-slate-400'}`}>{value || 'yyyy-mm-dd'}</span>
         <Calendar className="w-4 h-4 text-slate-400 shrink-0 ml-2" />
-        <input
-          ref={inputRef}
-          type="date"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="absolute inset-0 w-full h-full opacity-0 pointer-events-none"
-        />
+        <input ref={inputRef} type="date" value={value} onChange={(e) => onChange(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 pointer-events-none" />
       </div>
     </div>
   );
@@ -925,8 +845,7 @@ function KpiCard({ title, value, subtitle, icon, color = 'slate', highlight = fa
   };
 
   return (
-    <div onClick={onClick} className={`p-4 rounded-2xl border bg-gradient-to-br ${colorMap[color]} shadow-md flex flex-col justify-between relative overflow-hidden group transition-all ${onClick ? 'cursor-pointer hover:scale-[1.02] active:scale-95' : ''} ${highlight ? 'shadow-[0_0_15px_rgba(255,255,255,0.08)] ring-1 ring-white/20' : ''}`}>
-      <div className="absolute -right-4 -top-4 w-16 h-16 rounded-full bg-current opacity-[0.04] group-hover:scale-150 transition-transform duration-500"></div>
+    <div onClick={onClick} className={`p-4 rounded-2xl border bg-gradient-to-br ${colorMap[color]} shadow-md flex flex-col justify-between relative overflow-hidden group transition-all ${onClick ? 'cursor-pointer hover:scale-[1.02]' : ''} ${highlight ? 'ring-1 ring-white/20' : ''}`}>
       <div className="flex items-start justify-between mb-2">
         <span className="text-[10px] font-extrabold text-slate-300 uppercase tracking-widest flex items-center gap-1">{title} {onClick && <Sparkles className="w-3 h-3 opacity-60 text-blue-400" />}</span>
         <div className="opacity-80">{React.cloneElement(icon as React.ReactElement, { size: 16 })}</div>
