@@ -7,7 +7,7 @@ import {
 import {
   Upload, Users, AlertTriangle, CheckCircle, Ticket, Layers, Filter, AlertOctagon,
   Sparkles, TrendingUp, BarChart3, List, Award, X, Download, Maximize2, Smile,
-  Calendar, Clock, Sliders, ChevronDown
+  Calendar, Clock, Sliders, ChevronDown, Plus, FileSpreadsheet
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
@@ -36,6 +36,7 @@ const EQUIPO_IT: Record<string, { dept: string; role: string }> = {
   'José David Sánchez': { dept: 'PDE', role: 'Engineer' },
   'Jose Claudio Urena': { dept: 'PDE', role: 'Engineer' },
   'José Claudio Ureña': { dept: 'PDE', role: 'Engineer' },
+  'Jose Claudio': { dept: 'PDE', role: 'Engineer' },
   'Yordi Moran': { dept: 'Sin Asignar', role: 'N/A' },
   'Yordi Morán': { dept: 'Sin Asignar', role: 'N/A' },
   'Joas Diaz Mena': { dept: 'Sin Asignar', role: 'N/A' },
@@ -47,10 +48,10 @@ const EQUIPO_IT: Record<string, { dept: string; role: string }> = {
 const OFFICIAL_DEPTS = ['Helpdesk', 'IT Operations', 'Salesforce developer', 'PDE', 'Sin Asignar'];
 
 const DEMO_TICKETS = [
-  { 'Ticket Id': 'TK-1001', 'Ticket Owner': 'Joan Perez', 'Sub-departamento': 'Helpdesk', 'Status (Ticket)': 'Closed', 'SLA Violation Type': 'Not Violated', 'Product Name (Ticket)': 'Hardware', 'Request Level': 'Support', 'Priority (Ticket)': 'High', 'Happiness Rating': '100%', 'Created Time': '2026-09-01 09:00:00' },
-  { 'Ticket Id': 'TK-1002', 'Ticket Owner': 'Jose Martinez', 'Sub-departamento': 'PDE', 'Status (Ticket)': 'Open', 'SLA Violation Type': 'Resolution Violation', 'Product Name (Ticket)': 'Salesforce Automation', 'Request Level': 'Engineer', 'Priority (Ticket)': 'Medium', 'Happiness Rating': '95%', 'Created Time': '2026-09-02 11:15:00' },
-  { 'Ticket Id': 'TK-1003', 'Ticket Owner': 'Saul Vanderhorst', 'Sub-departamento': 'IT Operations', 'Status (Ticket)': 'Closed', 'SLA Violation Type': 'Not Violated', 'Product Name (Ticket)': 'VPN / Firewall', 'Request Level': 'Operations', 'Priority (Ticket)': 'High', 'Happiness Rating': '98%', 'Created Time': '2026-09-03 14:20:00' },
-  { 'Ticket Id': 'TK-1004', 'Ticket Owner': 'José Claudio Ureña', 'Sub-departamento': 'PDE', 'Status (Ticket)': 'Closed', 'SLA Violation Type': 'Not Violated', 'Product Name (Ticket)': 'Database Engine', 'Request Level': 'Engineer', 'Priority (Ticket)': 'Medium', 'Happiness Rating': '90%', 'Created Time': '2026-09-04 10:05:00' }
+  { 'Ticket Id': 'TK-1001', 'Ticket Owner': 'Joan Perez', 'Sub-departamento': 'Helpdesk', 'Status (Ticket)': 'Closed', 'SLA Violation Type': 'Not Violated', 'Product Name (Ticket)': 'Hardware', 'Request Level': 'Support', 'Priority (Ticket)': 'High', 'Happiness Rating': '100%', 'Created Time (Ticket)': '01 Sep 2026 09:00 AM' },
+  { 'Ticket Id': 'TK-1002', 'Ticket Owner': 'Jose Martinez', 'Sub-departamento': 'PDE', 'Status (Ticket)': 'Open', 'SLA Violation Type': 'Resolution Violation', 'Product Name (Ticket)': 'Salesforce Automation', 'Request Level': 'Engineer', 'Priority (Ticket)': 'Medium', 'Happiness Rating': '95%', 'Created Time (Ticket)': '08 Sep 2026 11:15 AM' },
+  { 'Ticket Id': 'TK-1003', 'Ticket Owner': 'Saul Vanderhorst', 'Sub-departamento': 'IT Operations', 'Status (Ticket)': 'Closed', 'SLA Violation Type': 'Not Violated', 'Product Name (Ticket)': 'VPN / Firewall', 'Request Level': 'Operations', 'Priority (Ticket)': 'High', 'Happiness Rating': '98%', 'Created Time (Ticket)': '10 Sep 2026 02:20 PM' },
+  { 'Ticket Id': 'TK-1004', 'Ticket Owner': 'José Claudio Ureña', 'Sub-departamento': 'PDE', 'Status (Ticket)': 'Closed', 'SLA Violation Type': 'Not Violated', 'Product Name (Ticket)': 'Database Engine', 'Request Level': 'Engineer', 'Priority (Ticket)': 'Medium', 'Happiness Rating': '90%', 'Created Time (Ticket)': '14 Sep 2026 10:05 AM' }
 ];
 
 interface TicketData { [key: string]: string; }
@@ -66,12 +67,48 @@ interface InsightModal {
   title: string; text?: string; chartType: 'pie' | 'bar'; data: any[];
 }
 
+// 📅 PARSER ROBUSTO DE FECHAS PARA BÚSQUEDA Y FILTRADO REAL
+function parseToDate(dateStr: string): Date | null {
+  if (!dateStr || dateStr === '-' || dateStr.trim() === '') return null;
+  const d = new Date(dateStr);
+  if (!isNaN(d.getTime())) return d;
+
+  const parts = dateStr.split(/[-/ ]/);
+  if (parts.length >= 3) {
+    if (parts[2].length === 4) {
+      const day = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const year = parseInt(parts[2], 10);
+      const parsed = new Date(year, month, day);
+      if (!isNaN(parsed.getTime())) return parsed;
+    }
+  }
+  return null;
+}
+
+function isDateInRange(ticketDateStr: string, startStr: string, endStr: string): boolean {
+  if (!ticketDateStr || ticketDateStr === '-' || ticketDateStr.trim() === '') return true;
+  const tDate = parseToDate(ticketDateStr);
+  if (!tDate) return true;
+
+  if (startStr) {
+    const sDate = new Date(startStr + 'T00:00:00');
+    if (!isNaN(sDate.getTime()) && tDate < sDate) return false;
+  }
+  if (endStr) {
+    const eDate = new Date(endStr + 'T23:59:59');
+    if (!isNaN(eDate.getTime()) && tDate > eDate) return false;
+  }
+  return true;
+}
+
 export default function App() {
   useEffect(() => { document.title = "IT TICKETS & INCENTIVOS"; }, []);
 
   const [allTickets, setAllTickets] = useState<TicketData[]>([]);
   const [loading, setLoading] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [uploadedFilesCount, setUploadedFilesCount] = useState<number>(0);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'team' | 'raw' | 'tool2'>('dashboard');
 
   const [selectedUser, setSelectedUser] = useState<string>('Todos');
@@ -93,7 +130,6 @@ export default function App() {
     }
   }, [selectedDept, selectedUser]);
 
-  // BÚSQUEDA EXACTA Y LIMPIA DE COLUMNAS
   const getVal = (ticket: TicketData, possibleKeys: string[], defaultValue: string = '') => {
     const ticketKeys = Object.keys(ticket);
     const clean = (str: string) => str.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -107,50 +143,61 @@ export default function App() {
     return defaultValue;
   };
 
-  // DETECTOR INTELIGENTE DE CABECERAS Y DEPURACIÓN DE FILAS BASURA
+  // 📁 CARGA MULTI-CSV
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
     setLoading(true);
 
-    Papa.parse(file, {
-      header: false,
-      skipEmptyLines: true,
-      complete: (results) => {
-        const rows = results.data as string[][];
-        const keywords = ['ticket', 'owner', 'status', 'subject', 'priority', 'sla', 'created', 'agente', 'estado', 'id', 'reference', 'product', 'department'];
+    let pendingFiles = files.length;
+    const accumulatedTickets: TicketData[] = [];
 
-        let bestScore = -1;
-        let headerIndex = 0;
+    Array.from(files).forEach((file) => {
+      Papa.parse(file, {
+        header: false,
+        skipEmptyLines: true,
+        complete: (results) => {
+          const rows = results.data as string[][];
+          const keywords = ['ticket', 'owner', 'status', 'subject', 'priority', 'sla', 'created', 'agente', 'estado', 'id', 'reference', 'product', 'department'];
 
-        for (let i = 0; i < Math.min(rows.length, 25); i++) {
-          const rowStr = rows[i].join(' ').toLowerCase();
-          const score = keywords.reduce((acc, kw) => acc + (rowStr.includes(kw) ? 1 : 0), 0);
-          if (score > bestScore && score >= 2) {
-            bestScore = score;
-            headerIndex = i;
+          let bestScore = -1;
+          let headerIndex = 0;
+
+          for (let i = 0; i < Math.min(rows.length, 25); i++) {
+            const rowStr = rows[i].join(' ').toLowerCase();
+            const score = keywords.reduce((acc, kw) => acc + (rowStr.includes(kw) ? 1 : 0), 0);
+            if (score > bestScore && score >= 2) {
+              bestScore = score;
+              headerIndex = i;
+            }
           }
-        }
 
-        const headers = rows[headerIndex].map((h) => h.replace(/["\r\n]/g, '').trim());
-        const rawData = rows.slice(headerIndex + 1);
+          const headers = rows[headerIndex].map((h) => h.replace(/["\r\n]/g, '').trim());
+          const rawData = rows.slice(headerIndex + 1);
 
-        const tickets: TicketData[] = rawData
-          .map((row) => {
-            const obj: TicketData = {};
-            headers.forEach((header, idx) => {
-              obj[header] = row[idx] ? row[idx].toString().replace(/["\r\n]/g, '').trim() : '';
+          const tickets: TicketData[] = rawData
+            .map((row) => {
+              const obj: TicketData = {};
+              headers.forEach((header, idx) => {
+                obj[header] = row[idx] ? row[idx].toString().replace(/["\r\n]/g, '').trim() : '';
+              });
+              return obj;
+            })
+            .filter((t) => {
+              const rowStr = Object.values(t).join(' ').toLowerCase();
+              return !rowStr.includes('total records') && !rowStr.includes('report generated') && Object.values(t).some((v) => v.trim() !== '');
             });
-            return obj;
-          })
-          .filter((t) => {
-            const rowStr = Object.values(t).join(' ').toLowerCase();
-            return !rowStr.includes('total records') && !rowStr.includes('report generated') && Object.values(t).some((v) => v.trim() !== '');
-          });
 
-        setAllTickets(tickets);
-        setLoading(false);
-      },
+          accumulatedTickets.push(...tickets);
+          pendingFiles--;
+
+          if (pendingFiles === 0) {
+            setAllTickets((prev) => [...prev, ...accumulatedTickets]);
+            setUploadedFilesCount((prev) => prev + files.length);
+            setLoading(false);
+          }
+        },
+      });
     });
   };
 
@@ -191,18 +238,14 @@ export default function App() {
     const usersSet = new Set<string>();
     allTickets.forEach((t) => {
       let rawOwner = getVal(t, ['Ticket Owner', 'Técnico Responsable', 'Técnico', 'Agent', 'Owner', 'Agente'], 'Sin Asignar');
-      if (rawOwner.toLowerCase().includes('total records') || rawOwner.length > 35) {
-        rawOwner = 'Sin Asignar';
-      }
+      if (rawOwner.toLowerCase().includes('total records') || rawOwner.length > 35) rawOwner = 'Sin Asignar';
       usersSet.add(rawOwner.trim() === '' ? 'Sin Asignar' : rawOwner);
     });
 
     const uniqueUsersList = Array.from(usersSet).sort();
     const currentTickets = allTickets.filter((t) => {
       let rawOwner = getVal(t, ['Ticket Owner', 'Técnico Responsable', 'Técnico', 'Agent', 'Owner', 'Agente'], 'Sin Asignar');
-      if (rawOwner.toLowerCase().includes('total records') || rawOwner.length > 35) {
-        rawOwner = 'Sin Asignar';
-      }
+      if (rawOwner.toLowerCase().includes('total records') || rawOwner.length > 35) rawOwner = 'Sin Asignar';
       const owner = rawOwner.trim() === '' ? 'Sin Asignar' : rawOwner;
       const officialMatch = EQUIPO_IT[owner];
       let dept = officialMatch ? officialMatch.dept : getOfficialDept(getVal(t, ['Sub-departamento', 'departamento', 'department', 'Department Name'], 'Sin Depto'));
@@ -216,9 +259,7 @@ export default function App() {
 
     currentTickets.forEach((t) => {
       let rawOwner = getVal(t, ['Ticket Owner', 'Técnico Responsable', 'Técnico', 'Agent', 'Owner', 'Agente'], 'Sin Asignar');
-      if (rawOwner.toLowerCase().includes('total records') || rawOwner.length > 35) {
-        rawOwner = 'Sin Asignar';
-      }
+      if (rawOwner.toLowerCase().includes('total records') || rawOwner.length > 35) rawOwner = 'Sin Asignar';
       const owner = rawOwner.trim() === '' ? 'Sin Asignar' : rawOwner;
       const officialMatch = EQUIPO_IT[owner];
       const dept = officialMatch ? officialMatch.dept : 'Sin Asignar';
@@ -226,7 +267,6 @@ export default function App() {
       const status = getVal(t, ['Status (Ticket)', 'Estado', 'Status'], 'Open');
       const sla = getVal(t, ['SLA Violation Type', 'Violación SLA', 'SLA Status'], 'Not Violated');
       
-      // Categorización Inteligente por Asunto / Tema real sin agrupar en "General"
       let product = getVal(t, ['Product Name (Ticket)', 'Categoría', 'Product Name'], '');
       if (!product || product === '-') {
         const subject = getVal(t, ['Subject', 'Asunto'], '');
@@ -314,6 +354,7 @@ export default function App() {
     };
   }, [allTickets, selectedUser, selectedDept]);
 
+  // 💡 HERRAMIENTA 2 - CON PARSER DE FECHA CORREGIDO
   const tool2Data = useMemo(() => {
     if (allTickets.length === 0) return null;
     const levelSet = new Set<string>();
@@ -336,9 +377,9 @@ export default function App() {
       const matchAgent = d2Agent === 'Todos' || owner === d2Agent;
       const matchLevel = d2Level === 'Todos' || level === d2Level;
       const matchPriority = d2Priority === 'Todas' || priority === d2Priority;
-      let matchDate = true;
-      if (startDate && createdDate) matchDate = matchDate && createdDate >= startDate;
-      if (endDate && createdDate) matchDate = matchDate && createdDate <= endDate;
+      
+      // PARSER DE FECHAS SEGURO
+      const matchDate = isDateInRange(createdDate, startDate, endDate);
 
       return matchAgent && matchLevel && matchPriority && matchDate;
     });
@@ -384,13 +425,13 @@ export default function App() {
           <h1 className="text-3xl font-black text-white mb-4 tracking-tight">IT TICKETS & INCENTIVOS</h1>
           <div className="bg-[#0f172a]/80 p-5 rounded-xl border border-slate-700/80 mb-8 shadow-inner">
             <p className="text-slate-200 text-sm font-medium leading-relaxed">
-              Plataforma analítica para evaluación operativa y dictamen de incentivos. Sube tu archivo CSV para comenzar.
+              Plataforma analítica para evaluación operativa y dictamen de incentivos. Sube uno o varios reportes CSV para comenzar.
             </p>
           </div>
           <div className="flex flex-col gap-4 items-center">
             <label className="w-full cursor-pointer bg-blue-600 hover:bg-blue-500 text-white font-bold py-3.5 px-8 rounded-xl transition-all flex items-center justify-center gap-3 text-sm shadow-lg shadow-blue-900/50 hover:scale-[1.02] active:scale-95">
-              {loading ? 'Procesando...' : 'Cargar Reporte (CSV)'}
-              <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload} disabled={loading} />
+              {loading ? 'Procesando...' : 'Cargar Reportes CSV (Multi-archivo)'}
+              <input type="file" accept=".csv" multiple className="hidden" onChange={handleFileUpload} disabled={loading} />
             </label>
             <button onClick={() => setAllTickets(DEMO_TICKETS)} className="mt-2 text-xs font-extrabold text-slate-300 hover:text-blue-400 uppercase tracking-widest transition-colors border-b border-dashed border-slate-600 hover:border-blue-400 pb-0.5">
               VISUALIZAR CON DATOS DE DEMOSTRACIÓN
@@ -403,17 +444,17 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#0f172a] text-slate-200 font-sans pb-12 flex flex-col items-center relative">
-      {/* MODAL AMPLIADO EN ALTA RESOLUCIÓN */}
+      {/* 🔍 MODAL AMPLIADO HD SIN RECORTES DE TEXTO */}
       {activeModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="bg-[#1e293b] w-full max-w-4xl rounded-2xl border border-slate-600 shadow-2xl overflow-hidden flex flex-col">
+          <div className="bg-[#1e293b] w-full max-w-5xl rounded-2xl border border-slate-600 shadow-2xl overflow-hidden flex flex-col">
             <div className="px-6 py-4 border-b border-slate-700 flex items-center justify-between bg-slate-900/90">
               <h2 className="text-base font-bold text-white flex items-center gap-2"><Sparkles className="w-5 h-5 text-blue-400" />{activeModal.title}</h2>
               <button onClick={() => setActiveModal(null)} className="p-1.5 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"><X className="w-5 h-5" /></button>
             </div>
             <div className="p-6">
               {activeModal.text && <p className="text-xs text-slate-200 mb-6 bg-slate-900/80 p-4 rounded-xl border border-slate-700/60 leading-relaxed">{activeModal.text}</p>}
-              <div className="h-[400px] w-full">
+              <div className="h-[450px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   {activeModal.chartType === 'pie' ? (
                     <PieChart>
@@ -424,23 +465,20 @@ export default function App() {
                       <Legend verticalAlign="bottom" height={36} />
                     </PieChart>
                   ) : (
-                    <BarChart data={activeModal.data} layout={activeModal.data.some(d => d.name && d.name.length > 15) ? "vertical" : "horizontal"} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" />
-                      {activeModal.data.some(d => d.name && d.name.length > 15) ? (
-                        <>
-                          <XAxis type="number" tick={{ fill: '#cbd5e1', fontSize: 11 }} />
-                          <YAxis dataKey="name" type="category" width={180} tick={{ fill: '#cbd5e1', fontSize: 11 }} tickFormatter={(val: string) => val.length > 25 ? val.slice(0, 23) + '...' : val} />
-                        </>
-                      ) : (
-                        <>
-                          <XAxis dataKey="name" tick={{ fill: '#cbd5e1', fontSize: 11 }} />
-                          <YAxis tick={{ fill: '#cbd5e1', fontSize: 11 }} />
-                        </>
-                      )}
+                    <BarChart data={activeModal.data} layout="vertical" margin={{ top: 20, right: 40, left: 20, bottom: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#334155" />
+                      <XAxis type="number" tick={{ fill: '#cbd5e1', fontSize: 11 }} />
+                      <YAxis 
+                        dataKey="name" 
+                        type="category" 
+                        width={200} 
+                        tick={{ fill: '#cbd5e1', fontSize: 11 }} 
+                        tickFormatter={(val: string) => val.length > 28 ? val.slice(0, 25) + '...' : val} 
+                      />
                       <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#3b82f6', borderRadius: '8px', color: '#ffffff' }} />
                       <Legend />
                       {Object.keys(activeModal.data[0] || {}).filter((k) => k !== 'name').map((key, index) => (
-                        <Bar key={key} dataKey={key} fill={index === 0 ? '#3b82f6' : '#10b981'} radius={[4, 4, 0, 0]} barSize={32} />
+                        <Bar key={key} dataKey={key} fill={index === 0 ? '#3b82f6' : '#10b981'} radius={[0, 6, 6, 0]} barSize={26} />
                       ))}
                     </BarChart>
                   )}
@@ -460,10 +498,14 @@ export default function App() {
             </div>
             <div>
               <h1 className="text-lg font-bold text-white tracking-wide leading-tight">Dashboard Ejecutivo IT</h1>
-              <p className="text-slate-400 text-xs font-medium">Evaluación Operativa, CSAT e Incentivos</p>
+              <p className="text-slate-400 text-xs font-medium">Evaluación Operativa, CSAT e Incentivos {uploadedFilesCount > 0 && `(${uploadedFilesCount} CSVs cargados)`}</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
+            <label className="cursor-pointer flex items-center gap-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 text-xs font-bold py-2 px-3 rounded-lg border border-blue-500/30 transition-all">
+              <Plus className="w-4 h-4" /> Agregar CSV
+              <input type="file" accept=".csv" multiple className="hidden" onChange={handleFileUpload} disabled={loading} />
+            </label>
             <button onClick={exportPDF} disabled={isExporting} className="flex items-center gap-2 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 text-xs font-bold py-2 px-3.5 rounded-lg transition-colors border border-emerald-500/30 active:scale-95">
               <Download className="w-4 h-4" />{isExporting ? 'Generando PDF...' : 'Exportar PDF'}
             </button>
@@ -473,7 +515,7 @@ export default function App() {
             <div className="w-52">
               <CustomSelect value={selectedUser} onChange={setSelectedUser} options={[{ value: 'Todos', label: 'Especialista: Todos' }, ...displayedUsers.map(u => ({ value: u, label: u }))]} />
             </div>
-            <button onClick={() => { setAllTickets([]); setSelectedDept('Todos'); setSelectedUser('Todos'); }} className="text-xs font-bold bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 py-2 px-3 rounded-lg transition-colors border border-rose-500/30">
+            <button onClick={() => { setAllTickets([]); setUploadedFilesCount(0); setSelectedDept('Todos'); setSelectedUser('Todos'); }} className="text-xs font-bold bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 py-2 px-3 rounded-lg transition-colors border border-rose-500/30">
               Cerrar Reporte
             </button>
           </div>
@@ -539,7 +581,6 @@ export default function App() {
             {/* GRÁFICOS PRINCIPALES */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               
-              {/* DISTRIBUCIÓN POR ESTADO */}
               <div 
                 onClick={() => setActiveModal({ id: 'modal-status', type: 'chart', title: 'Desglose Detallado de Estatus', chartType: 'pie', data: stats.status })} 
                 className="bg-[#1e293b] p-6 rounded-2xl border border-slate-700 shadow-md cursor-pointer hover:border-blue-500/50 transition-all group relative flex flex-col justify-between"
@@ -561,7 +602,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* TOP CATEGORÍAS OPERATIVAS */}
               <div 
                 onClick={() => setActiveModal({ id: 'modal-categories', type: 'chart', title: 'Top Categorías Operativas Ampliado', chartType: 'bar', data: stats.categories.map((c) => ({ name: c.name, Tickets: c.value })) })} 
                 className="bg-[#1e293b] p-6 rounded-2xl border border-slate-700 shadow-md col-span-1 lg:col-span-2 cursor-pointer hover:border-blue-500/50 transition-all group relative flex flex-col justify-between"
@@ -578,9 +618,9 @@ export default function App() {
                       <YAxis 
                         dataKey="name" 
                         type="category" 
-                        width={140} 
+                        width={180} 
                         tick={{ fontSize: 11, fill: '#cbd5e1' }} 
-                        tickFormatter={(val: string) => val.length > 22 ? val.slice(0, 20) + '...' : val}
+                        tickFormatter={(val: string) => val.length > 25 ? val.slice(0, 22) + '...' : val}
                         axisLine={false} 
                         tickLine={false} 
                       />
