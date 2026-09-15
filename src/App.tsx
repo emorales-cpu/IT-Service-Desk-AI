@@ -14,36 +14,40 @@ import jsPDF from 'jspdf';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#6366f1'];
 
-// 🚀 ORGANIGRAMA OFICIAL
+// 🚀 ORGANIGRAMA ACTUALIZADO (Sin CRM Manager ni Marianny, Operations -> IT Operations)
 const EQUIPO_IT: Record<string, { dept: string; role: string }> = {
-  'Joan Perez': { dept: 'Soporte Técnico', role: 'Service Desk N2' },
-  'Jean Nunez': { dept: 'Soporte Técnico', role: 'Service Desk N2' },
-  'Eriksson Morales': { dept: 'Soporte Técnico', role: 'Service Desk N2' },
-  'Henry Garcia': { dept: 'Soporte Técnico', role: 'Service Desk N2' },
-  'Enmanuel Jerez': { dept: 'Sistemas & Aplicaciones', role: 'ITR Hub & CRM' },
-  'Jose Martinez': { dept: 'Sistemas & Aplicaciones', role: 'Soporte de Software' },
-  'Saul Vanderhorst': { dept: 'Infraestructura & Redes', role: 'Comunicaciones & Telefonía' },
-  'Firian Martinez': { dept: 'Infraestructura & Redes', role: 'Service Desk N1' },
-  'Marianny Torres': { dept: 'Sin Asignar', role: 'Leads' },
+  'Eriksson Morales': { dept: 'Helpdesk', role: 'Support' },
+  'Henry Garcia': { dept: 'Helpdesk', role: 'Support' },
+  'Jean Nunez': { dept: 'Helpdesk', role: 'Support' },
+  'Joan Perez': { dept: 'Helpdesk', role: 'Support' },
+  'Enmanuel Jerez': { dept: 'IT Operations', role: 'Operations' },
+  'Firian Martinez': { dept: 'IT Operations', role: 'Operations' },
+  'Saul Vanderhorst': { dept: 'IT Operations', role: 'Operations' },
+  'Rodrigo Soriano': { dept: 'Salesforce developer', role: 'Developer' },
+  'Jose Manuel Martinez': { dept: 'PDE', role: 'Engineer' },
+  'Jose David Sanchez': { dept: 'PDE', role: 'Engineer' },
+  'Jose Claudio Urena': { dept: 'PDE', role: 'Engineer' },
+  'Yordi Moran': { dept: 'Sin Asignar', role: 'N/A' },
+  'Joas Diaz Mena': { dept: 'Sin Asignar', role: 'N/A' },
   'Unassigned': { dept: 'Sin Asignar', role: 'Cola General' },
   '-': { dept: 'Sin Asignar', role: 'Cola General' }
 };
 
-const OFFICIAL_DEPTS = ['Soporte Técnico', 'Sistemas & Aplicaciones', 'Infraestructura & Redes', 'Sin Asignar'];
+const OFFICIAL_DEPTS = ['Helpdesk', 'IT Operations', 'Salesforce developer', 'PDE', 'Sin Asignar'];
 
-// 📊 DATOS DE DEMOSTRACIÓN
+// 📊 DATOS DE DEMOSTRACIÓN ACTUALIZADOS
 const DEMO_TICKETS = [
-  { 'Ticket Id': 'TK-1001', 'Ticket Owner': 'Joan Perez', 'Sub-departamento': 'Soporte Técnico', 'Status (Ticket)': 'Closed', 'SLA Violation Type': 'Not Violated', 'Product Name (Ticket)': 'Hardware', 'Request Level': 'Service Desk N2', 'Priority (Ticket)': 'High', 'Resolution Time in Business Hours': '1h 30m', 'Happiness Rating': '100%', 'Created Time': '2026-09-01 09:00:00' },
-  { 'Ticket Id': 'TK-1002', 'Ticket Owner': 'Joan Perez', 'Sub-departamento': 'Soporte Técnico', 'Status (Ticket)': 'Resolved', 'SLA Violation Type': 'Not Violated', 'Product Name (Ticket)': 'Impresoras', 'Request Level': 'Service Desk N2', 'Priority (Ticket)': 'Medium', 'Resolution Time in Business Hours': '45m', 'Happiness Rating': '95%', 'Created Time': '2026-09-02 11:15:00' },
-  { 'Ticket Id': 'TK-1003', 'Ticket Owner': 'Jean Nunez', 'Sub-departamento': 'Soporte Técnico', 'Status (Ticket)': 'Closed', 'SLA Violation Type': 'Not Violated', 'Product Name (Ticket)': 'Software', 'Request Level': 'Service Desk N2', 'Priority (Ticket)': 'Low', 'Resolution Time in Business Hours': '2h 10m', 'Happiness Rating': '90%', 'Created Time': '2026-09-03 14:20:00' },
-  { 'Ticket Id': 'TK-1004', 'Ticket Owner': 'Eriksson Morales', 'Sub-departamento': 'Soporte Técnico', 'Status (Ticket)': 'Open', 'SLA Violation Type': 'Resolution Violation', 'Product Name (Ticket)': 'Redes', 'Request Level': 'N1 (Service Desk)', 'Priority (Ticket)': 'High', 'Resolution Time in Business Hours': '12h 00m', 'Happiness Rating': '85%', 'Created Time': '2026-09-04 10:05:00' },
-  { 'Ticket Id': 'TK-1005', 'Ticket Owner': 'Henry Garcia', 'Sub-departamento': 'Soporte Técnico', 'Status (Ticket)': 'Closed', 'SLA Violation Type': 'Not Violated', 'Product Name (Ticket)': 'Correo', 'Request Level': 'Service Desk N2', 'Priority (Ticket)': 'Medium', 'Resolution Time in Business Hours': '1h 00m', 'Happiness Rating': '100%', 'Created Time': '2026-09-05 16:30:00' },
-  { 'Ticket Id': 'TK-1006', 'Ticket Owner': 'Enmanuel Jerez', 'Sub-departamento': 'Sistemas & Aplicaciones', 'Status (Ticket)': 'Closed', 'SLA Violation Type': 'Resolution Violation', 'Product Name (Ticket)': 'ITR Hub', 'Request Level': 'ITR Hub & CRM', 'Priority (Ticket)': 'High', 'Resolution Time in Business Hours': '8h 00m', 'Happiness Rating': '100%', 'Created Time': '2026-09-06 09:10:00' },
-  { 'Ticket Id': 'TK-1007', 'Ticket Owner': 'Enmanuel Jerez', 'Sub-departamento': 'Sistemas & Aplicaciones', 'Status (Ticket)': 'Closed', 'SLA Violation Type': 'Not Violated', 'Product Name (Ticket)': 'Salesforce', 'Request Level': 'ITR Hub & CRM', 'Priority (Ticket)': 'Medium', 'Resolution Time in Business Hours': '2h 00m', 'Happiness Rating': '98%', 'Created Time': '2026-09-07 13:40:00' },
-  { 'Ticket Id': 'TK-1008', 'Ticket Owner': 'Jose Martinez', 'Sub-departamento': 'Sistemas & Aplicaciones', 'Status (Ticket)': 'In progress', 'SLA Violation Type': 'Not Violated', 'Product Name (Ticket)': 'Zoho Desk', 'Request Level': 'Soporte de Software', 'Priority (Ticket)': 'Low', 'Resolution Time in Business Hours': '3h 15m', 'Happiness Rating': '92%', 'Created Time': '2026-09-08 15:00:00' },
-  { 'Ticket Id': 'TK-1009', 'Ticket Owner': 'Saul Vanderhorst', 'Sub-departamento': 'Infraestructura & Redes', 'Status (Ticket)': 'Closed', 'SLA Violation Type': 'Not Violated', 'Product Name (Ticket)': 'VPN / Firewall', 'Request Level': 'Comunicaciones & Telefonía', 'Priority (Ticket)': 'High', 'Resolution Time in Business Hours': '1h 45m', 'Happiness Rating': '96%', 'Created Time': '2026-09-09 11:00:00' },
-  { 'Ticket Id': 'TK-1010', 'Ticket Owner': 'Firian Martinez', 'Sub-departamento': 'Infraestructura & Redes', 'Status (Ticket)': 'Closed', 'SLA Violation Type': 'Not Violated', 'Product Name (Ticket)': 'Telefonía IP', 'Request Level': 'Service Desk N1', 'Priority (Ticket)': 'Medium', 'Resolution Time in Business Hours': '2h 30m', 'Happiness Rating': '94%', 'Created Time': '2026-09-10 10:30:00' },
-  { 'Ticket Id': 'TK-1011', 'Ticket Owner': 'Marianny Torres', 'Sub-departamento': 'Sin Asignar', 'Status (Ticket)': 'Closed', 'SLA Violation Type': 'Not Violated', 'Product Name (Ticket)': 'Accesos', 'Request Level': 'Leads', 'Priority (Ticket)': 'Low', 'Resolution Time in Business Hours': '1h 00m', 'Happiness Rating': '100%', 'Created Time': '2026-09-11 08:45:00' },
+  { 'Ticket Id': 'TK-1001', 'Ticket Owner': 'Joan Perez', 'Sub-departamento': 'Helpdesk', 'Status (Ticket)': 'Closed', 'SLA Violation Type': 'Not Violated', 'Product Name (Ticket)': 'Hardware', 'Request Level': 'Support', 'Priority (Ticket)': 'High', 'Resolution Time in Business Hours': '1h 30m', 'Happiness Rating': '100%', 'Created Time': '2026-09-01 09:00:00' },
+  { 'Ticket Id': 'TK-1002', 'Ticket Owner': 'Joan Perez', 'Sub-departamento': 'Helpdesk', 'Status (Ticket)': 'Resolved', 'SLA Violation Type': 'Not Violated', 'Product Name (Ticket)': 'Impresoras', 'Request Level': 'Support', 'Priority (Ticket)': 'Medium', 'Resolution Time in Business Hours': '45m', 'Happiness Rating': '95%', 'Created Time': '2026-09-02 11:15:00' },
+  { 'Ticket Id': 'TK-1003', 'Ticket Owner': 'Jean Nunez', 'Sub-departamento': 'Helpdesk', 'Status (Ticket)': 'Closed', 'SLA Violation Type': 'Not Violated', 'Product Name (Ticket)': 'Software', 'Request Level': 'Support', 'Priority (Ticket)': 'Low', 'Resolution Time in Business Hours': '2h 10m', 'Happiness Rating': '90%', 'Created Time': '2026-09-03 14:20:00' },
+  { 'Ticket Id': 'TK-1004', 'Ticket Owner': 'Eriksson Morales', 'Sub-departamento': 'Helpdesk', 'Status (Ticket)': 'Open', 'SLA Violation Type': 'Resolution Violation', 'Product Name (Ticket)': 'Redes', 'Request Level': 'Support', 'Priority (Ticket)': 'High', 'Resolution Time in Business Hours': '12h 00m', 'Happiness Rating': '85%', 'Created Time': '2026-09-04 10:05:00' },
+  { 'Ticket Id': 'TK-1005', 'Ticket Owner': 'Henry Garcia', 'Sub-departamento': 'Helpdesk', 'Status (Ticket)': 'Closed', 'SLA Violation Type': 'Not Violated', 'Product Name (Ticket)': 'Correo', 'Request Level': 'Support', 'Priority (Ticket)': 'Medium', 'Resolution Time in Business Hours': '1h 00m', 'Happiness Rating': '100%', 'Created Time': '2026-09-05 16:30:00' },
+  { 'Ticket Id': 'TK-1006', 'Ticket Owner': 'Enmanuel Jerez', 'Sub-departamento': 'IT Operations', 'Status (Ticket)': 'Closed', 'SLA Violation Type': 'Resolution Violation', 'Product Name (Ticket)': 'ITR Hub', 'Request Level': 'Operations', 'Priority (Ticket)': 'High', 'Resolution Time in Business Hours': '8h 00m', 'Happiness Rating': '100%', 'Created Time': '2026-09-06 09:10:00' },
+  { 'Ticket Id': 'TK-1007', 'Ticket Owner': 'Enmanuel Jerez', 'Sub-departamento': 'IT Operations', 'Status (Ticket)': 'Closed', 'SLA Violation Type': 'Not Violated', 'Product Name (Ticket)': 'Salesforce', 'Request Level': 'Operations', 'Priority (Ticket)': 'Medium', 'Resolution Time in Business Hours': '2h 00m', 'Happiness Rating': '98%', 'Created Time': '2026-09-07 13:40:00' },
+  { 'Ticket Id': 'TK-1008', 'Ticket Owner': 'Jose Manuel Martinez', 'Sub-departamento': 'PDE', 'Status (Ticket)': 'In progress', 'SLA Violation Type': 'Not Violated', 'Product Name (Ticket)': 'Zoho Desk', 'Request Level': 'Engineer', 'Priority (Ticket)': 'Low', 'Resolution Time in Business Hours': '3h 15m', 'Happiness Rating': '92%', 'Created Time': '2026-09-08 15:00:00' },
+  { 'Ticket Id': 'TK-1009', 'Ticket Owner': 'Saul Vanderhorst', 'Sub-departamento': 'IT Operations', 'Status (Ticket)': 'Closed', 'SLA Violation Type': 'Not Violated', 'Product Name (Ticket)': 'VPN / Firewall', 'Request Level': 'Operations', 'Priority (Ticket)': 'High', 'Resolution Time in Business Hours': '1h 45m', 'Happiness Rating': '96%', 'Created Time': '2026-09-09 11:00:00' },
+  { 'Ticket Id': 'TK-1010', 'Ticket Owner': 'Firian Martinez', 'Sub-departamento': 'IT Operations', 'Status (Ticket)': 'Closed', 'SLA Violation Type': 'Not Violated', 'Product Name (Ticket)': 'Telefonía IP', 'Request Level': 'Operations', 'Priority (Ticket)': 'Medium', 'Resolution Time in Business Hours': '2h 30m', 'Happiness Rating': '94%', 'Created Time': '2026-09-10 10:30:00' },
+  { 'Ticket Id': 'TK-1011', 'Ticket Owner': 'Rodrigo Soriano', 'Sub-departamento': 'Salesforce developer', 'Status (Ticket)': 'Closed', 'SLA Violation Type': 'Not Violated', 'Product Name (Ticket)': 'Salesforce Core', 'Request Level': 'Developer', 'Priority (Ticket)': 'High', 'Resolution Time in Business Hours': '1h 00m', 'Happiness Rating': '100%', 'Created Time': '2026-09-11 08:45:00' },
 ];
 
 interface TicketData { [key: string]: string; }
@@ -178,9 +182,10 @@ export default function App() {
 
   const getOfficialDept = (rawDeptString: string) => {
     const str = rawDeptString.toLowerCase();
-    if (str.includes('soporte')) return 'Soporte Técnico';
-    if (str.includes('sistemas') || str.includes('aplicaciones')) return 'Sistemas & Aplicaciones';
-    if (str.includes('infraestructura') || str.includes('redes')) return 'Infraestructura & Redes';
+    if (str.includes('helpdesk')) return 'Helpdesk';
+    if (str.includes('operations') || str.includes('operaciones') || str.includes('it operations')) return 'IT Operations';
+    if (str.includes('salesforce')) return 'Salesforce developer';
+    if (str.includes('pde')) return 'PDE';
     return 'Sin Asignar';
   };
 
@@ -353,7 +358,7 @@ export default function App() {
 
   const displayedUsers = selectedDept === 'Todos' ? uniqueUsers : uniqueUsers.filter(user => EQUIPO_IT[user]?.dept === selectedDept || (EQUIPO_IT[user] === undefined && selectedDept === 'Sin Asignar'));
 
-  // 🌟 PANTALLA DE BIENVENIDA MÁS CLARA Y CLÁSICA
+  // 🌟 PANTALLA DE BIENVENIDA
   if (allTickets.length === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#0f172a] flex flex-col items-center justify-center p-6 text-slate-100">
@@ -494,7 +499,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* NAVEGACIÓN PESTAÑAS (REBRANDED A IT TICKETS) */}
+        {/* NAVEGACIÓN PESTAÑAS */}
         <div className="flex space-x-1 bg-[#1e293b] p-1.5 rounded-xl border border-slate-700 shadow-md w-fit" data-html2canvas-ignore="true">
           <TabButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<BarChart3 />} text="Resumen Ejecutivo" />
           <TabButton active={activeTab === 'team'} onClick={() => setActiveTab('team')} icon={<Award />} text="Desempeño del Equipo" />
