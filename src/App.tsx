@@ -7,7 +7,7 @@ import {
 import {
   Upload, Users, AlertTriangle, CheckCircle, Ticket, Layers, Filter, AlertOctagon,
   Sparkles, TrendingUp, BarChart3, List, Award, X, Download, Maximize2, Smile,
-  Calendar, Clock, Sliders, ChevronDown, Plus, FileSpreadsheet
+  Calendar, Clock, Sliders, ChevronDown, Plus, RefreshCw
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
@@ -67,7 +67,6 @@ interface InsightModal {
   title: string; text?: string; chartType: 'pie' | 'bar'; data: any[];
 }
 
-// 📅 PARSER ROBUSTO DE FECHAS PARA BÚSQUEDA Y FILTRADO REAL
 function parseToDate(dateStr: string): Date | null {
   if (!dateStr || dateStr === '-' || dateStr.trim() === '') return null;
   const d = new Date(dateStr);
@@ -103,7 +102,7 @@ function isDateInRange(ticketDateStr: string, startStr: string, endStr: string):
 }
 
 export default function App() {
-  useEffect(() => { document.title = "IT & PDE Support Request Dashboard"; }, []);
+  useEffect(() => { document.title = "IT TICKETS & INCENTIVOS"; }, []);
 
   const [allTickets, setAllTickets] = useState<TicketData[]>([]);
   const [loading, setLoading] = useState(false);
@@ -143,7 +142,40 @@ export default function App() {
     return defaultValue;
   };
 
-  // 📁 CARGA MULTI-CSV
+  // 🔄 SINCRONIZACIÓN AUTOMÁTICA CON ZOHO DESK API
+  const syncZohoTickets = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('http://localhost:3001/api/zoho/tickets');
+      const result = await response.json();
+
+      if (result.error) {
+        alert(`Error desde servidor: ${result.error}`);
+        return;
+      }
+
+      const ticketsList = result.data || result;
+      if (Array.isArray(ticketsList)) {
+        const formattedTickets: TicketData[] = ticketsList.map((t: any) => ({
+          'Ticket Id': t.ticketNumber || t.id || '-',
+          'Ticket Owner': t.assignee ? `${t.assignee.firstName || ''} ${t.assignee.lastName || ''}`.trim() : 'Sin Asignar',
+          'Status (Ticket)': t.status || 'Open',
+          'SLA Violation Type': t.isSlaViolated ? 'Resolution Violation' : 'Not Violated',
+          'Priority (Ticket)': t.priority || '-',
+          'Product Name (Ticket)': t.product ? t.product.productName : (t.department ? t.department.name : 'Soporte General'),
+          'Created Time (Ticket)': t.createdTime || t.createdTimeFormatted || ''
+        }));
+
+        setAllTickets(formattedTickets);
+        alert(`¡Sincronización exitosa! Se cargaron ${formattedTickets.length} tickets desde Zoho Desk.`);
+      }
+    } catch (error) {
+      alert('No se pudo conectar con el servidor puente. Asegúrate de tener ejecutando "npm run server".');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -354,7 +386,6 @@ export default function App() {
     };
   }, [allTickets, selectedUser, selectedDept]);
 
-  // 💡 HERRAMIENTA 2 - CON PARSER DE FECHA CORREGIDO
   const tool2Data = useMemo(() => {
     if (allTickets.length === 0) return null;
     const levelSet = new Set<string>();
@@ -377,8 +408,6 @@ export default function App() {
       const matchAgent = d2Agent === 'Todos' || owner === d2Agent;
       const matchLevel = d2Level === 'Todos' || level === d2Level;
       const matchPriority = d2Priority === 'Todas' || priority === d2Priority;
-      
-      // PARSER DE FECHAS SEGURO
       const matchDate = isDateInRange(createdDate, startDate, endDate);
 
       return matchAgent && matchLevel && matchPriority && matchDate;
@@ -422,15 +451,19 @@ export default function App() {
           <div className="w-20 h-20 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-6 ring-1 ring-blue-500/30">
             <Upload className="w-8 h-8 text-blue-400" />
           </div>
-          <h1 className="text-3xl font-black text-white mb-4 tracking-tight">IT & PDE Support Request Dashboard</h1>
+          <h1 className="text-3xl font-black text-white mb-4 tracking-tight">IT TICKETS & INCENTIVOS</h1>
           <div className="bg-[#0f172a]/80 p-5 rounded-xl border border-slate-700/80 mb-8 shadow-inner">
             <p className="text-slate-200 text-sm font-medium leading-relaxed">
-              Plataforma analítica para evaluación operativa y dictamen de incentivos. Sube uno o varios reportes CSV para comenzar.
+              Plataforma analítica para evaluación operativa. Sincroniza en tiempo real con Zoho Desk o carga archivos CSV.
             </p>
           </div>
-          <div className="flex flex-col gap-4 items-center">
+          <div className="flex flex-col gap-4 items-center w-full">
+            <button onClick={syncZohoTickets} disabled={loading} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3.5 px-8 rounded-xl transition-all flex items-center justify-center gap-3 text-sm shadow-lg shadow-emerald-900/50 hover:scale-[1.02] active:scale-95">
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              {loading ? 'Conectando con Zoho...' : 'Sincronizar con Zoho Desk API'}
+            </button>
             <label className="w-full cursor-pointer bg-blue-600 hover:bg-blue-500 text-white font-bold py-3.5 px-8 rounded-xl transition-all flex items-center justify-center gap-3 text-sm shadow-lg shadow-blue-900/50 hover:scale-[1.02] active:scale-95">
-              {loading ? 'Procesando...' : 'Cargar Reportes CSV (Multi-archivo)'}
+              Cargar Reportes CSV
               <input type="file" accept=".csv" multiple className="hidden" onChange={handleFileUpload} disabled={loading} />
             </label>
             <button onClick={() => setAllTickets(DEMO_TICKETS)} className="mt-2 text-xs font-extrabold text-slate-300 hover:text-blue-400 uppercase tracking-widest transition-colors border-b border-dashed border-slate-600 hover:border-blue-400 pb-0.5">
@@ -444,7 +477,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#0f172a] text-slate-200 font-sans pb-12 flex flex-col items-center relative">
-      {/* 🔍 MODAL AMPLIADO HD SIN RECORTES DE TEXTO */}
       {activeModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
           <div className="bg-[#1e293b] w-full max-w-5xl rounded-2xl border border-slate-600 shadow-2xl overflow-hidden flex flex-col">
@@ -468,13 +500,7 @@ export default function App() {
                     <BarChart data={activeModal.data} layout="vertical" margin={{ top: 20, right: 40, left: 20, bottom: 20 }}>
                       <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#334155" />
                       <XAxis type="number" tick={{ fill: '#cbd5e1', fontSize: 11 }} />
-                      <YAxis 
-                        dataKey="name" 
-                        type="category" 
-                        width={200} 
-                        tick={{ fill: '#cbd5e1', fontSize: 11 }} 
-                        tickFormatter={(val: string) => val.length > 28 ? val.slice(0, 25) + '...' : val} 
-                      />
+                      <YAxis dataKey="name" type="category" width={200} tick={{ fill: '#cbd5e1', fontSize: 11 }} tickFormatter={(val: string) => val.length > 28 ? val.slice(0, 25) + '...' : val} />
                       <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#3b82f6', borderRadius: '8px', color: '#ffffff' }} />
                       <Legend />
                       {Object.keys(activeModal.data[0] || {}).filter((k) => k !== 'name').map((key, index) => (
@@ -489,7 +515,7 @@ export default function App() {
         </div>
       )}
 
-      {/* HEADER */}
+      {/* HEADER BAR */}
       <div className="bg-[#1e293b]/90 backdrop-blur-md border-b border-slate-700/80 sticky top-0 z-40 shadow-lg w-full flex justify-center">
         <div className="w-full max-w-[1400px] px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
@@ -498,16 +524,19 @@ export default function App() {
             </div>
             <div>
               <h1 className="text-lg font-bold text-white tracking-wide leading-tight">Dashboard Ejecutivo IT</h1>
-              <p className="text-slate-400 text-xs font-medium">Evaluación Operativa, CSAT e Incentivos {uploadedFilesCount > 0 && `(${uploadedFilesCount} CSVs cargados)`}</p>
+              <p className="text-slate-400 text-xs font-medium">Evaluación Operativa, CSAT e Incentivos</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
+            <button onClick={syncZohoTickets} disabled={loading} className="flex items-center gap-2 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 text-xs font-bold py-2 px-3.5 rounded-lg border border-emerald-500/30 transition-all active:scale-95">
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Sincronizar Zoho
+            </button>
             <label className="cursor-pointer flex items-center gap-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 text-xs font-bold py-2 px-3 rounded-lg border border-blue-500/30 transition-all">
               <Plus className="w-4 h-4" /> Agregar CSV
               <input type="file" accept=".csv" multiple className="hidden" onChange={handleFileUpload} disabled={loading} />
             </label>
-            <button onClick={exportPDF} disabled={isExporting} className="flex items-center gap-2 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 text-xs font-bold py-2 px-3.5 rounded-lg transition-colors border border-emerald-500/30 active:scale-95">
-              <Download className="w-4 h-4" />{isExporting ? 'Generando PDF...' : 'Exportar PDF'}
+            <button onClick={exportPDF} disabled={isExporting} className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold py-2 px-3.5 rounded-lg transition-colors border border-slate-600 active:scale-95">
+              <Download className="w-4 h-4" /> Exportar PDF
             </button>
             <div className="w-44">
               <CustomSelect value={selectedDept} onChange={setSelectedDept} options={[{ value: 'Todos', label: 'Dpto: Todos' }, ...OFFICIAL_DEPTS.map(d => ({ value: d, label: d }))]} />
@@ -515,7 +544,7 @@ export default function App() {
             <div className="w-52">
               <CustomSelect value={selectedUser} onChange={setSelectedUser} options={[{ value: 'Todos', label: 'Especialista: Todos' }, ...displayedUsers.map(u => ({ value: u, label: u }))]} />
             </div>
-            <button onClick={() => { setAllTickets([]); setUploadedFilesCount(0); setSelectedDept('Todos'); setSelectedUser('Todos'); }} className="text-xs font-bold bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 py-2 px-3 rounded-lg transition-colors border border-rose-500/30">
+            <button onClick={() => { setAllTickets([]); setSelectedDept('Todos'); setSelectedUser('Todos'); }} className="text-xs font-bold bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 py-2 px-3 rounded-lg transition-colors border border-rose-500/30">
               Cerrar Reporte
             </button>
           </div>
@@ -578,9 +607,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* GRÁFICOS PRINCIPALES */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              
               <div 
                 onClick={() => setActiveModal({ id: 'modal-status', type: 'chart', title: 'Desglose Detallado de Estatus', chartType: 'pie', data: stats.status })} 
                 className="bg-[#1e293b] p-6 rounded-2xl border border-slate-700 shadow-md cursor-pointer hover:border-blue-500/50 transition-all group relative flex flex-col justify-between"
@@ -615,22 +642,13 @@ export default function App() {
                     <BarChart data={stats.categories} layout="vertical" margin={{ top: 0, right: 30, left: 10, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#334155" />
                       <XAxis type="number" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                      <YAxis 
-                        dataKey="name" 
-                        type="category" 
-                        width={180} 
-                        tick={{ fontSize: 11, fill: '#cbd5e1' }} 
-                        tickFormatter={(val: string) => val.length > 25 ? val.slice(0, 22) + '...' : val}
-                        axisLine={false} 
-                        tickLine={false} 
-                      />
+                      <YAxis dataKey="name" type="category" width={180} tick={{ fontSize: 11, fill: '#cbd5e1' }} tickFormatter={(val: string) => val.length > 25 ? val.slice(0, 22) + '...' : val} axisLine={false} tickLine={false} />
                       <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#3b82f6', borderRadius: '8px', color: '#ffffff' }} />
                       <Bar dataKey="value" fill="#3b82f6" radius={[0, 6, 6, 0]} barSize={22} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
               </div>
-
             </div>
           </div>
         )}
@@ -713,7 +731,6 @@ export default function App() {
           </div>
         )}
 
-        {/* PESTAÑA 4: IT TICKETS */}
         {activeTab === 'tool2' && tool2Data && (
           <div className="space-y-6">
             <div className="bg-[#1e293b] p-6 rounded-2xl border border-slate-700 shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
